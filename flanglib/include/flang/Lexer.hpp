@@ -35,6 +35,7 @@ namespace flang {
         Dot, // .
         Comma, // ,
         SemiColon, // ;
+        Colon, // ;
         Equal, // =
         LessThan, // <
         LessOrEqual, // <=

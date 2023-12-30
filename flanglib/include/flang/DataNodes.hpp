@@ -4,6 +4,7 @@
 #include <utility>
 #include <memory>
 #include <optional>
+#include <unordered_map>
 
 #include "Lexer.hpp"
 
@@ -17,7 +18,8 @@ namespace flang {
         Token tok;
 
         explicit DataNode(Token tok): tok(std::move(tok)) {}
-        virtual std::string ToString();
+        virtual ~DataNode() = default;
+        [[nodiscard]] virtual std::string toString() const;
 
         virtual std::shared_ptr<Object> accept(Interpreter& visitor) = 0;
     };
@@ -38,7 +40,7 @@ namespace flang {
         explicit BlockNode(Token tok): DataNode(std::move(tok)) {}
         BlockNode(std::vector<std::shared_ptr<DataNode>> _statements, Token tok): DataNode(std::move(tok)), statements(std::move(_statements)) {}
 
-        std::string ToString() override;
+        [[nodiscard]] std::string toString() const override;
         std::shared_ptr<Object> accept(Interpreter& visitor) override;
     };
 
@@ -47,7 +49,7 @@ namespace flang {
         std::string value;
 
         StringNode(std::string val, Token tok): DataNode(std::move(tok)), value(std::move(val)) {}
-        std::string ToString() override;
+        [[nodiscard]] std::string toString() const override;
         std::shared_ptr<Object> accept(Interpreter& visitor) override;
     };
 
@@ -55,15 +57,15 @@ namespace flang {
     public:
         int64_t value;
         IntNode(int64_t val, Token tok): DataNode(std::move(tok)), value(val) {}
-        std::string ToString() override;
+        [[nodiscard]] std::string toString() const override;
         std::shared_ptr<Object> accept(Interpreter& visitor) override;
     };
 
     class FloatNode: public DataNode {
     public:
         long double value;
-        FloatNode(double val, Token tok): DataNode(std::move(tok)), value(val) {}
-        std::string ToString() override;
+        FloatNode(long double val, Token tok): DataNode(std::move(tok)), value(val) {}
+        [[nodiscard]] std::string toString() const override;
         std::shared_ptr<Object> accept(Interpreter& visitor) override;
     };
 
@@ -71,14 +73,27 @@ namespace flang {
     public:
         std::vector<std::shared_ptr<flang::DataNode>> items;
         ListNode(std::vector<std::shared_ptr<flang::DataNode>> _items, Token tok): DataNode(std::move(tok)), items(std::move(_items)) {}
-        std::string ToString() override;
+        [[nodiscard]] std::string toString() const override;
+        std::shared_ptr<Object> accept(Interpreter& visitor) override;
+    };
+
+    class DictionaryNode: public DataNode {
+    public:
+        typedef std::vector<std::tuple<std::shared_ptr<flang::DataNode>, std::shared_ptr<flang::DataNode>>> KeyValTuples;
+        KeyValTuples items;
+
+        DictionaryNode(KeyValTuples _items, Token tok): DataNode(std::move(tok)), items(std::move(_items)) {}
+
+        [[nodiscard]] std::string toString() const override;
         std::shared_ptr<Object> accept(Interpreter& visitor) override;
     };
 
     class VarAccessNode: public DataNode {
     public:
-        explicit VarAccessNode(Token tok): DataNode(std::move(tok)) {}
-        std::string ToString() override;
+        std::string value;
+        explicit VarAccessNode(Token _tok): DataNode(std::move(_tok)) {}
+        explicit VarAccessNode(std::string _value, Token _tok): DataNode(std::move(_tok)), value(std::move(_value)) {}
+        [[nodiscard]] std::string toString() const override;
         std::shared_ptr<Object> accept(Interpreter& visitor) override;
     };
 
@@ -86,9 +101,9 @@ namespace flang {
     public:
 
         std::shared_ptr<DataNode> expr;
-        AssignmentNode(std::shared_ptr<DataNode> _expr, Token tok): DataNode(std::move(tok)), expr(std::move(_expr)) {}
+        AssignmentNode(DataNode* _expr, Token tok): DataNode(std::move(tok)), expr(_expr) {}
 
-        std::string ToString() override;
+        [[nodiscard]] std::string toString() const override;
         std::shared_ptr<Object> accept(Interpreter& visitor) override;
     };
 
@@ -97,10 +112,10 @@ namespace flang {
         std::vector<std::shared_ptr<flang::DataNode>> args;
         std::shared_ptr<BlockNode> block;
 
-        FunctionDefNode(Token tok, std::vector<std::shared_ptr<flang::DataNode>> _args, std::shared_ptr<BlockNode> _block):
-            DataNode(std::move(tok)), args(std::move(_args)), block(std::move(_block)) {}
+        FunctionDefNode(Token tok, std::vector<std::shared_ptr<flang::DataNode>> _args, BlockNode* _block):
+            DataNode(std::move(tok)), args(std::move(_args)), block(_block) {}
 
-        std::string ToString() override;
+        [[nodiscard]] std::string toString() const override;
         std::shared_ptr<Object> accept(Interpreter& visitor) override;
     };
 
@@ -111,18 +126,10 @@ namespace flang {
         FunctionCallNode(Token tok, std::vector<std::shared_ptr<flang::DataNode>> _args):
         DataNode(std::move(tok)), args(std::move(_args)) {}
 
-        std::string ToString() override;
-        std::shared_ptr<Object> accept(Interpreter& visitor) override;
-//        [[nodiscard]] static std::optional<std::string> verifyArgsCount(int current_count, int expected_count, const Token& tok, bool fixed_args=true);
-    };
-
-    class NoneNode: public DataNode {
-    public:
-
-        explicit NoneNode(Token tok): DataNode(std::move(tok)){}
-        std::string ToString() override;
+        [[nodiscard]] std::string toString() const override;
         std::shared_ptr<Object> accept(Interpreter& visitor) override;
     };
+
 
     class StructDefNode: public DataNode {
     public:
@@ -130,7 +137,7 @@ namespace flang {
 
         explicit StructDefNode(Token tok): DataNode(std::move(tok)) {}
         StructDefNode(std::vector<std::shared_ptr<DataNode>> _values, Token tok): DataNode(std::move(tok)), values(std::move(_values)) {}
-        std::string ToString() override;
+        [[nodiscard]] std::string toString() const override;
         std::shared_ptr<Object> accept(Interpreter& visitor) override;
     };
 
@@ -139,10 +146,10 @@ namespace flang {
         std::shared_ptr<DataNode> left_node;
         std::shared_ptr<DataNode> right_node;
 
-        MemberAccessNode(std::shared_ptr<DataNode> _left_node, std::shared_ptr<DataNode> _right_node, Token tok)
-                : DataNode(std::move(tok)), left_node(std::move(_left_node)), right_node(std::move(_right_node)) {}
+        MemberAccessNode(DataNode* _left_node, DataNode* _right_node, Token tok)
+                : DataNode(std::move(tok)), left_node(_left_node), right_node(_right_node) {}
 
-        std::string ToString() override;
+        [[nodiscard]] std::string toString() const override;
         std::shared_ptr<Object> accept(Interpreter& visitor) override;
     };
 
@@ -152,25 +159,25 @@ namespace flang {
         std::shared_ptr<DataNode> body_node;
 
         explicit ConditionNode(Token tok): DataNode(std::move(tok)){}
-        explicit ConditionNode(std::shared_ptr<DataNode> _condition_node, std::shared_ptr<DataNode> _body_node, Token tok):
+        explicit ConditionNode(DataNode* _condition_node, DataNode* _body_node, Token tok):
             DataNode(std::move(tok)),
-            condition_node(std::move(_condition_node)),
-            body_node(std::move(_body_node))
+            condition_node(_condition_node),
+            body_node(_body_node)
             {}
 
-        std::string ToString() override;
+        [[nodiscard]] std::string toString() const override;
         std::shared_ptr<Object> accept(Interpreter& visitor) override;
     };
 
     class IFNode: public DataNode {
     public:
-        std::shared_ptr<ConditionNode> cond_node;
+        ConditionNode cond_node;
         std::shared_ptr<BlockNode> else_node;
-        std::vector<std::shared_ptr<ConditionNode>> else_ifs;
+        std::vector<ConditionNode> else_ifs;
 
-        explicit IFNode(Token tok): DataNode(std::move(tok)) {}
+        explicit IFNode(Token tok, ConditionNode _condNode) : DataNode(std::move(tok)), cond_node(std::move(_condNode)) {}
 
-        std::string ToString() override;
+        [[nodiscard]] std::string toString() const override;
         std::shared_ptr<Object> accept(Interpreter& visitor) override;
     };
 
@@ -185,10 +192,10 @@ namespace flang {
         std::shared_ptr<DataNode> right_node;
         Operations op;
 
-        LogicalOpNode(std::shared_ptr<DataNode> _left, std::shared_ptr<DataNode> _right, Operations _op, Token tok) :
-        DataNode(std::move(tok)), left_node(std::move(_left)), right_node(std::move(_right)), op(_op) {}
+        LogicalOpNode(DataNode* _left, DataNode *_right, Operations _op, Token tok) :
+        DataNode(std::move(tok)), left_node(_left), right_node(_right), op(_op) {}
 
-        std::string ToString() override;
+        [[nodiscard]] std::string toString() const override;
         std::shared_ptr<Object> accept(Interpreter& visitor) override;
 
         static std::string OpToString(Operations op);
@@ -199,18 +206,18 @@ namespace flang {
     public:
         std::shared_ptr<DataNode> return_node;
 
-        ReturnNode(std::shared_ptr<DataNode> _return_node, Token tok) : DataNode(std::move(tok)), return_node(std::move(_return_node)) {}
-        std::string ToString() override;
+        ReturnNode(DataNode* _return_node, Token tok) : DataNode(std::move(tok)), return_node(_return_node) {}
+        [[nodiscard]] std::string toString() const override;
         std::shared_ptr<Object> accept(Interpreter& visitor) override;
     };
 
 
     class WhileLoopNode: public DataNode {
     public:
-        std::shared_ptr<ConditionNode> cond_node;
+        ConditionNode cond_node;
 
-        WhileLoopNode(std::shared_ptr<ConditionNode> _cond_node, Token tok): DataNode(std::move(tok)), cond_node(std::move(_cond_node)) {}
-        std::string ToString() override;
+        WhileLoopNode(ConditionNode _cond_node, Token tok): DataNode(std::move(tok)), cond_node(std::move(_cond_node)) {}
+        [[nodiscard]] std::string toString() const override;
         std::shared_ptr<Object> accept(Interpreter& visitor) override;
     };
 
@@ -225,14 +232,21 @@ namespace flang {
         std::shared_ptr<DataNode> right_node;
         Operations op;
 
-        UnaryOpNode(std::shared_ptr<DataNode> _right_node, Operations _op, Token tok) : DataNode(std::move(tok)), right_node(std::move(_right_node)), op(_op) {}
+        UnaryOpNode(DataNode* _right_node, Operations _op, Token tok) : DataNode(std::move(tok)), right_node(std::move(_right_node)), op(_op) {}
 
-        std::string ToString() override;
+        [[nodiscard]] std::string toString() const override;
         std::shared_ptr<Object> accept(Interpreter& visitor) override;
         static std::string OpToString(Operations op);
         static Operations TokToOperation(const Token& token);
     };
 
+    class NoneNode: public DataNode {
+    public:
+
+        explicit NoneNode(Token tok): DataNode(std::move(tok)){}
+        [[nodiscard]] std::string toString() const override;
+        std::shared_ptr<Object> accept(Interpreter& visitor) override;
+    };
 
     class BinOpNode : public DataNode {
     public:
@@ -254,10 +268,10 @@ namespace flang {
         std::shared_ptr<DataNode> right_node;
         Operations op;
 
-        BinOpNode(std::shared_ptr<DataNode> _left, std::shared_ptr<DataNode> _right, Operations _op, Token tok) :
-                DataNode(std::move(tok)), left_node(std::move(_left)), right_node(std::move(_right)), op(_op) {}
+        BinOpNode(DataNode* _left, DataNode* _right, Operations _op, Token tok) :
+                DataNode(std::move(tok)), left_node(_left), right_node(_right), op(_op) {}
 
-        std::string ToString() override;
+        [[nodiscard]] std::string toString() const override;
         static std::string OpToString(Operations op);
         static Operations TokToOperation(const Token& token);
         std::shared_ptr<Object> accept(Interpreter& visitor) override;

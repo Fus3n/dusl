@@ -39,29 +39,22 @@ bool flang::runSingleFile(const std::string& file_name, flang::Interpreter &visi
     }
     file.close();
 
-
     auto tokens = lexer.tokenize(code, file_name);
     auto ast = parser.parse(code, file_name, tokens);
-    //    for (auto& statement : ast->statements) {
-//        fmt::println("{}", statement->ToString());
-//    }
-//    return true;
-
 
     std::shared_ptr<flang::Object> return_val;
-    for (auto& statement : ast->statements) {
-        return_val = visitor.visit(statement);
-    }
+    return_val = visitor.visit(ast);
 
-    bool success;
     if (return_val) {
-        fmt::println("{}", return_val->ToString());
-        success = true;
+        fmt::println("{}", return_val->toString());
+        return false;
     } else {
         fmt::println("Return value is null");
-        success = false;
+        return true;
     }
 
+}
 
-    return success;
+bool flang::loadSTD(flang::Interpreter &visitor) {
+    return false;
 }

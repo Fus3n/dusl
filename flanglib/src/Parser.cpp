@@ -25,8 +25,7 @@ void flang::Parser::eat(TokenType tt) {
     }
 }
 
-std::shared_ptr<flang::ProgramNode> flang::Parser::parse(std::string_view code, std::string_view file_name, const std::vector<Token> &tokens) {
-
+flang::ProgramNode flang::Parser::parse(std::string_view code, std::string_view file_name, const std::vector<Token> &tokens) {
     m_toks = tokens;
     // move the cursor to the first token
     m_token = m_toks[m_tok_idx];
@@ -38,13 +37,13 @@ std::shared_ptr<flang::ProgramNode> flang::Parser::parse(std::string_view code, 
     return ast;
 }
 
-std::shared_ptr<flang::ProgramNode> flang::Parser::program() {
+flang::ProgramNode flang::Parser::program() {
     auto program = ProgramNode(this->m_token);
-    program.statements.push_back(block());
-    return std::make_shared<ProgramNode>(program);
+    program.statements.emplace_back(block());
+    return program;
 }
 
-std::shared_ptr<flang::DataNode> flang::Parser::statement() {
+flang::DataNode * flang::Parser::statement() {
     if (m_token.cmp(TokenType::Keyword)) {
         if (m_token.value == LanguageManager::getValue(FuncDefKey)) {
             return funcDef();
@@ -68,27 +67,27 @@ std::shared_ptr<flang::DataNode> flang::Parser::statement() {
     return expression();
 }
 
-std::shared_ptr<flang::DataNode> flang::Parser::block() {
-    auto block = BlockNode(this->m_token);
+flang::DataNode * flang::Parser::block() {
+    auto block = new BlockNode(this->m_token);
 
     while (m_token.tok != Eof) {
-        block.statements.push_back(statement());
+        block->statements.emplace_back(statement());
     }
 
-    return std::make_shared<BlockNode>(block);
+    return block;
 }
-std::shared_ptr<flang::BlockNode> flang::Parser::scopeBlock(std::optional<Token> tok)  {
-    auto block = BlockNode(tok.has_value() ? tok.value() : this->m_token);
+flang::BlockNode * flang::Parser::scopeBlock(std::optional<Token> tok)  {
+    auto block = new BlockNode(tok.has_value() ? tok.value() : this->m_token);
     eat(LBrace);
     while (!m_token.cmp(Eof) && !m_token.cmp(RBrace)) {
-        block.statements.push_back(statement());
+        block->statements.emplace_back(statement());
     }
     eat(RBrace);
-    return std::make_shared<BlockNode>(block);
+    return block;
 }
 
-std::shared_ptr<flang::DataNode> flang::Parser::expression() {
-    auto left = comparison();
+flang::DataNode * flang::Parser::expression() {
+    DataNode* left = comparison(); // comparison returns a DataNode*
 
     while (
             m_token.cmp(TokenType::Keyword, LanguageManager::getValue(KeywordType::AndKey)) |
@@ -99,17 +98,17 @@ std::shared_ptr<flang::DataNode> flang::Parser::expression() {
         auto right = comparison();
 
         if (op.value == LanguageManager::getValue(KeywordType::AndKey)) {
-            left = std::make_shared<LogicalOpNode>(left, right, LogicalOpNode::OP_AND, op);
+            left = new LogicalOpNode(left, right, LogicalOpNode::OP_AND, op);
         } else {
-            left = std::make_shared<LogicalOpNode>(left, right, LogicalOpNode::OP_OR, op);
+            left = new LogicalOpNode(left, right, LogicalOpNode::OP_OR, op);
         }
     }
 
     return left;
 }
 
-std::shared_ptr<flang::DataNode> flang::Parser::comparison() {
-    auto left = atom();
+flang::DataNode * flang::Parser::comparison() {
+    DataNode* left = atom();
 
     while (
             m_token.cmp(TokenType::GreaterThan) |
@@ -123,66 +122,66 @@ std::shared_ptr<flang::DataNode> flang::Parser::comparison() {
         auto op = m_token;
         eat(op.tok);
         auto right = atom();
-        left = std::make_shared<BinOpNode>(left, right, BinOpNode::TokToOperation(op), op);
+        left = new BinOpNode(left, right, BinOpNode::TokToOperation(op), op);
     }
 
     return left;
 }
 
-std::shared_ptr<flang::DataNode> flang::Parser::atom() {
-    auto left = term();
+flang::DataNode * flang::Parser::atom() {
+    DataNode* left = term();
 
     while (m_token.tok == TokenType::Plus || m_token.tok == TokenType::Minus) {
         auto op = m_token;
         eat(op.tok);
         auto right = term();
-        left = std::make_shared<BinOpNode>(left, right, BinOpNode::TokToOperation(op), op);
+        left = new BinOpNode(left, right, BinOpNode::TokToOperation(op), op);
     }
 
     return left;
 }
 
-std::shared_ptr<flang::DataNode> flang::Parser::term() {
-    auto left = dotExpr();
+flang::DataNode * flang::Parser::term() {
+    DataNode* left = dotExpr();
 
     while (m_token.tok == TokenType::Multiply || m_token.tok == TokenType::Divide || m_token.tok == TokenType::Modulo) {
         auto op = m_token;
         eat(op.tok);
         auto right = dotExpr();
-        left = std::make_shared<BinOpNode>(left, right, BinOpNode::TokToOperation(op), op);
+        left = new BinOpNode(left, right, BinOpNode::TokToOperation(op), op);
     }
 
     return left;
 }
 
-std::shared_ptr<flang::DataNode> flang::Parser::dotExpr() {
-    auto left = factor();
+flang::DataNode * flang::Parser::dotExpr() {
+    DataNode* left = factor();
 
     while (m_token.cmp(TokenType::Dot)) {
         auto op = m_token;
         eat(op.tok);
         auto right = factor();
-        left = std::make_shared<MemberAccessNode>(left, right, op);
+        left = new MemberAccessNode(left, right, op);
     }
 
     return left;
 }
 
-std::shared_ptr<flang::DataNode> flang::Parser::factor() {
+flang::DataNode * flang::Parser::factor() {
     Token curr_tok = m_token;
 
     if (m_token.tok == TokenType::STRING) {
         auto value = m_token.value;
         eat(TokenType::STRING);
-        return std::make_shared<StringNode>(value, curr_tok);
+        return new StringNode(value, curr_tok);
     } else if (m_token.tok == TokenType::INT) {
         auto value = m_token.value;
         eat(TokenType::INT);
-        return std::make_shared<IntNode>(std::stoi(value), curr_tok);
+        return new IntNode(std::stoi(value), curr_tok);
     } else if (m_token.tok == TokenType::FLOAT) {
         auto value = m_token.value;
         eat(TokenType::FLOAT);
-        return std::make_shared<FloatNode>(std::stold(value), curr_tok);
+        return new FloatNode(std::stold(value), curr_tok);
     } else if (m_token.tok == TokenType::Ident) {
         auto peeked = peek();
         if (peeked.has_value() && peeked.value().cmp(flang::LBracket)) {
@@ -191,7 +190,7 @@ std::shared_ptr<flang::DataNode> flang::Parser::factor() {
             return parseAssignment();
         }
         eat(flang::Ident);
-        return std::make_shared<VarAccessNode>(curr_tok);
+        return new VarAccessNode(curr_tok);
     } else if (m_token.tok == TokenType::LBracket) {
         return bracketExpr();
     } else if (m_token.cmp(TokenType::LSqrBracket)) {
@@ -202,33 +201,34 @@ std::shared_ptr<flang::DataNode> flang::Parser::factor() {
         auto op = m_token;
         eat(Keyword);
         auto expr = expression();
-        return std::make_shared<UnaryOpNode>(expr, UnaryOpNode::Operations::OP_NOT, op);
+        return new UnaryOpNode(expr, UnaryOpNode::Operations::OP_NOT, op);
+    } else if (m_token.cmp(TokenType::LBrace)) {
+        return parseDict();
     }
-
     m_token.pos.setCodeAndFile(m_code, m_file_name);
     FError(SyntaxError,
            fmt::format("Unexpected expression \"{}\"", m_token.ToString()),
            m_token.pos
     ).Throw();
 
-    return std::make_shared<NoneNode>(curr_tok);
+    return new NoneNode(curr_tok);
 }
 
-std::shared_ptr<flang::DataNode> flang::Parser::bracketExpr() {
+flang::DataNode * flang::Parser::bracketExpr() {
     this->eat(TokenType::LBracket);
     auto innerExpr = expression();
     this->eat(TokenType::RBracket);
     return innerExpr;
 }
 
-std::shared_ptr<flang::DataNode> flang::Parser::funcCall() {
+flang::DataNode * flang::Parser::funcCall() {
     auto func_name = m_token;
     eat(Ident);
     auto arguments = argumentParser();
-    return std::make_shared<FunctionCallNode>(func_name, arguments);
+    return new FunctionCallNode(func_name, std::move(arguments));
 }
 
-std::shared_ptr<flang::DataNode> flang::Parser::funcDef() {
+flang::DataNode * flang::Parser::funcDef() {
     eat(Keyword); // skip "fn" keyword
 
     auto func_name = m_token;
@@ -236,12 +236,11 @@ std::shared_ptr<flang::DataNode> flang::Parser::funcDef() {
 
     auto arguments = argumentParser();
     auto block = scopeBlock(func_name);
-    return std::make_shared<FunctionDefNode>(func_name, arguments, block);
+    return new FunctionDefNode(func_name, std::move(arguments), block);
 }
 
 std::vector<std::shared_ptr<flang::DataNode>> flang::Parser::argumentParser() {
 
-    auto curr_tok = m_token;
     // TODO: IMPORTANT, Update it to send back a new node called ArgumentNode and have way to check for arithmetics,
     // which might be needed for positional arguments
     std::vector<std::shared_ptr<DataNode>> arguments;
@@ -249,7 +248,7 @@ std::vector<std::shared_ptr<flang::DataNode>> flang::Parser::argumentParser() {
     eat(LBracket);
     // collect the arguments inside bracket
     while (!m_token.cmp(Eof) && !m_token.cmp(RBracket)) {
-        arguments.push_back(expression());
+        arguments.emplace_back(expression());
 
         if (m_token.cmp(Comma)) {
             eat(Comma);
@@ -266,48 +265,48 @@ std::optional<flang::Token> flang::Parser::peek() {
     return {};
 }
 
-std::shared_ptr<flang::DataNode> flang::Parser::parseList() {
+flang::DataNode * flang::Parser::parseList() {
     auto curr_tok = m_token;
     std::vector<std::shared_ptr<DataNode>> items;
     eat(LSqrBracket);
 
     while (!m_token.cmp(Eof) && !m_token.cmp(RSqrBrack)) {
-        items.push_back(expression());
+        items.emplace_back(expression());
 
         if (m_token.cmp(Comma)) {
             eat(Comma);
         }
     }
     eat(RSqrBrack);
-    return std::make_shared<ListNode>(items, m_token);
+    return new ListNode(std::move(items), curr_tok);
 }
 
-std::shared_ptr<flang::DataNode> flang::Parser::parseAssignment() {
+flang::DataNode * flang::Parser::parseAssignment() {
     auto curr_tok = m_token;
     eat(flang::Ident);
     eat(flang::Equal);
     auto expr = expression();
 
-    return std::make_shared<AssignmentNode>(expr, curr_tok);
+    return new AssignmentNode(expr, curr_tok);
 }
 
-std::shared_ptr<flang::DataNode> flang::Parser::structDef() {
+flang::DataNode * flang::Parser::structDef() {
     eat(Keyword);
 
     auto struct_name = m_token;
     eat(Ident);
 
     eat(LBrace);
-    auto struct_def = std::make_shared<StructDefNode>(struct_name);
+    auto struct_def = new StructDefNode(struct_name);
     while (!m_token.cmp(Eof) && !m_token.cmp(RBrace)) {
-        struct_def->values.push_back(parseStructBody());
+        struct_def->values.emplace_back(parseStructBody());
     }
     eat(RBrace);
 
     return struct_def;
 }
 
-std::shared_ptr<flang::DataNode> flang::Parser::parseStructBody() {
+flang::DataNode* flang::Parser::parseStructBody() {
     // Allow what a struct body should have
     if (m_token.cmp(TokenType::Ident)) {
         auto peeked = peek();
@@ -329,65 +328,86 @@ std::shared_ptr<flang::DataNode> flang::Parser::parseStructBody() {
            fmt::format("Keyword \"{}\" is not yet supported", m_token.value),
            m_token.pos
     ).Throw();
-    return std::make_shared<NoneNode>(m_token);
 
+    return new NoneNode(m_token);
 }
 
-std::shared_ptr<flang::ConditionNode> flang::Parser::capture_condition() {
-    auto cond_node = ConditionNode(m_token);
-    eat(Keyword);
-    cond_node.condition_node = expression();
-    cond_node.body_node = scopeBlock();
-    return std::make_shared<ConditionNode>(cond_node);
+flang::ConditionNode flang::Parser::capture_condition(Token tok) {
+    auto cond_node = expression();
+    auto body_node = scopeBlock();
+    return ConditionNode(cond_node, body_node, std::move(tok));
 }
 
-std::shared_ptr<flang::DataNode> flang::Parser::ifStatement() {
+flang::DataNode * flang::Parser::ifStatement() {
     auto if_tok = m_token;
-    auto if_node = IFNode(if_tok);
-    auto base_cond_node = ConditionNode(m_token);
-    eat(Keyword);
+    auto if_node = new IFNode(if_tok, ConditionNode(flang::Token()));
+    auto cond_tok = m_token;
+    eat(Keyword); // eat "if"
 
-    base_cond_node.condition_node = expression();
-    base_cond_node.body_node = scopeBlock();
-    if_node.cond_node = std::make_shared<ConditionNode>(base_cond_node);
+    auto cond_node = expression();
+    auto body_cond_node = scopeBlock();
+    if_node->cond_node = ConditionNode(cond_node, body_cond_node, cond_tok);
 
     while (!m_token.cmp(Eof) && m_token.cmp(TokenType::Keyword) && m_token.value == LanguageManager::getValue(ElseIfKey)) {
-        if_node.else_ifs.push_back(capture_condition());
+        auto key_tok = m_token;
+        eat(Keyword); // eat "elseif"
+        if_node->else_ifs.push_back(capture_condition(key_tok));
     }
 
     if (m_token.cmp(TokenType::Keyword)) {
         if (m_token.value == LanguageManager::getValue(ElseKey)) {
-            eat(Keyword);
-            if_node.else_node = scopeBlock();
+            eat(Keyword); // eat "else"
+            if_node->else_node = std::shared_ptr<BlockNode>(scopeBlock());
         }
     }
 
-    return std::make_shared<IFNode>(if_node);
+    return if_node;
 }
 
-std::shared_ptr<flang::DataNode> flang::Parser::returnStatement() {
+flang::DataNode * flang::Parser::returnStatement() {
     auto return_tok = m_token;
     eat(Keyword); // skip "return" keyword
     auto exprToReturn = expression();
-    return std::make_shared<ReturnNode>(exprToReturn, return_tok);
+    return new ReturnNode(exprToReturn, return_tok);
 }
 
-std::shared_ptr<flang::DataNode> flang::Parser::parseUnary() {
+flang::DataNode * flang::Parser::parseUnary() {
     auto op = m_token;
     eat(op.tok);
     auto expr = expression();
-    return std::make_shared<UnaryOpNode>(expr, UnaryOpNode::TokToOperation(op), op);
+    return new UnaryOpNode(expr, UnaryOpNode::TokToOperation(op), op);
 }
 
-std::shared_ptr<flang::DataNode> flang::Parser::whileStatement() {
+flang::DataNode * flang::Parser::whileStatement() {
     auto tok = m_token;
     eat(Keyword); // skip "while" keyword
 
     auto cond_expr = expression();
     auto body_scope = scopeBlock();
-    auto cond_node = std::make_shared<ConditionNode>(cond_expr, body_scope, tok);
+    auto cond_node = ConditionNode(cond_expr, body_scope, tok);
 
-    return std::make_shared<WhileLoopNode>(cond_node, tok);
+    return new WhileLoopNode(std::move(cond_node), tok);
+}
+
+flang::DataNode *flang::Parser::parseDict() {
+   auto curr_tok = m_token;
+   eat(LBrace);
+   DictionaryNode::KeyValTuples items = {};
+
+    while (!m_token.cmp(Eof) && !m_token.cmp(RBrace)) {
+        auto first = expression();
+        eat(Colon);
+        auto second = expression();
+        items.emplace_back(std::make_pair(first, second));
+
+        if (m_token.cmp(RBrace))
+            break;
+        else if (m_token.cmp(Comma))
+            eat(Comma);
+    }
+
+    eat(RBrace);
+    return new DictionaryNode(std::move(items), curr_tok);
 }
 
 

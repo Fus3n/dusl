@@ -2,13 +2,24 @@ cmake_minimum_required(VERSION 3.26)
 project(flang)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
-#add_subdirectory("../fmt-10.1.1" build)
+set(iS_DEBUG, FALSE)
+
+if(TRUE)
+    set(CMAKE_CXX_FLAGS_RELEASE "-O0")
+    set(CMAKE_C_FLAGS_RELEASE "-O0")
+    set(CMAKE_C_FLAGS_DEBUG "-O0")
+    set(CMAKE_CXX_FLAGS_DEBUG "-O0")
+else()
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+    set(CMAKE_C_FLAGS_RELEASE "-O3")
+    set(CMAKE_C_FLAGS_DEBUG "-O3")
+    set(CMAKE_CXX_FLAGS_DEBUG "-O3")
+endif()
+
 add_subdirectory(flanglib)
 
 add_executable(flang main.cpp)
-
 
 include(CheckIPOSupported)
 check_ipo_supported(RESULT result)

@@ -3,7 +3,7 @@
 #include <fmt/core.h>
 #include <cmath>
 
-std::string flang::FloatObject::ToString() const {
+std::string flang::FloatObject::toString() const {
     return fmt::format("{}", value);
 //    return std::to_string(value);
 }
@@ -161,5 +161,9 @@ std::shared_ptr<flang::Object> flang::FloatObject::unary_plus(const flang::Token
 
 std::shared_ptr<flang::Object> flang::FloatObject::unary_minus(const flang::Token &token) {
     return std::make_shared<FloatObject>(-value, token);
+}
+
+size_t flang::FloatObject::hash(const flang::Token &token) const {
+    return std::hash<long double>{}(value);
 }
 

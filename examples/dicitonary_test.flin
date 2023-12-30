@@ -1,0 +1,15 @@
+fn some() {
+    println("Funny word")
+}
+
+
+user = { "email": "sus@gmail.co", "pass": "secret123", some: some }
+
+# two ways of getting values
+email = user.email
+pass = user.get("pass")
+
+
+funny = user.keys().get(0)
+funny()
+

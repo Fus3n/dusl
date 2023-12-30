@@ -3,7 +3,7 @@
 #include <fmt/core.h>
 #include <cmath>
 
-std::string flang::IntObject::ToString() const {
+std::string flang::IntObject::toString() const {
     return std::to_string(value);
 }
 
@@ -156,5 +156,9 @@ flang::IntObject::unary_plus(const flang::Token &token) {
 std::shared_ptr<flang::Object>
 flang::IntObject::unary_minus(const flang::Token &token) {
     return std::make_shared<IntObject>(-value, token);
+}
+
+size_t flang::IntObject::hash(const flang::Token &token) const {
+    return std::hash<int64_t>{}(value);
 }
 

@@ -1,9 +1,13 @@
-#include <FObject.hpp>
+#include "FObject.hpp"
 #include "flang/ErrorType.hpp"
-#include <fmt/core.h>
+#include "fmt/core.h"
 
 std::string flang::Object::getTypeString() const {
     return "object";
+}
+
+bool flang::Object::isTrue() const {
+    return true;
 }
 
 std::shared_ptr<flang::Object> flang::Object::add_to(const std::shared_ptr<Object>& other, const Token &token) {
@@ -56,8 +60,8 @@ std::shared_ptr<flang::Object> flang::Object::getProperty(const std::string& nam
 
 std::shared_ptr<flang::Object> flang::Object::callProperty(flang::Interpreter& visitor, const std::shared_ptr<flang::FunctionCallNode>& fn_node) {
     FError(RunTimeError,
-           fmt::format("{} does not contain property function {}", tokToString(this->tok.tok), fn_node->tok.value),
-           tok.pos
+           fmt::format("{} does not contain property function {}", getTypeString(), fn_node->tok.value),
+           fn_node->tok.pos
     ).Throw();
     return std::make_shared<NoneObject>(tok);
 }
@@ -151,5 +155,13 @@ flang::Object::unary_minus(const flang::Token &token) {
 std::shared_ptr<flang::Object>
 flang::Object::unary_not(const flang::Token &token) {
     return std::make_shared<BooleanObject>(!isTrue(), token);
+}
+
+size_t flang::Object::hash(const flang::Token &token) const {
+    FError(RunTimeError,
+           fmt::format("{} is unhashable", tok.value),
+           token.pos
+    ).Throw();
+    return 0;
 }
 

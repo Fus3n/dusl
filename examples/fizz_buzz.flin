@@ -4,8 +4,12 @@ fn fizzBuzz(i) {
     elseif (i % 5 == 0) { return "Buzz" }
     else { return i }
 }
+println(println)
+println(fizzBuzz)
 
+totalCount = 1000
 v = []
+fillList(v, totalCount)
 count = 0
 start = getTime()
 while count < 1000 {
@@ -13,20 +17,6 @@ while count < 1000 {
     count = count + 1
 }
 end = getTime()
-print(v)
-print(getElapsedTimeMS(start, end))
-
-\
-Multiline comments
-
-recursion test
-
-fn loop(v, till, func_to_call) {
-    if (v == till) {
-        func_to_call(v)
-        return v
-    }
-    func_to_call(v)
-    return loop(v + 1, till, func_to_call)
-}
-\
+elapsed = getElapsedTimeMS(start, end)
+println(v)
+println(elapsed)

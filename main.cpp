@@ -13,14 +13,16 @@ namespace fs = std::filesystem;
 
 
 std::shared_ptr<flang::Object> printer(flang::Interpreter &visitor, const std::vector<std::shared_ptr<flang::Object>>& args, const flang::Token& tok) {
+    /// signature print(items,...)
     for (const auto& arg:  args) {
-        std::cout << arg->ToString() << " ";
+        std::cout << arg->toString() << " ";
     }
     std::cout << std::endl;
     return std::make_shared<flang::NoneObject>(flang::Token());
 }
 
 std::shared_ptr<flang::Object> get_type(flang::Interpreter &visitor, const std::vector<std::shared_ptr<flang::Object>>& args, const flang::Token& tok) {
+    /// signature type(type)
     auto r = verifyArgsCount(args.size(), 1, tok);
     if (r.has_value()) {
         flang::FError(flang::RunTimeError, r.value(), tok.pos).Throw();
@@ -28,7 +30,6 @@ std::shared_ptr<flang::Object> get_type(flang::Interpreter &visitor, const std::
     return std::make_shared<flang::StringObject>(args[0]->getTypeString(), args[0]->tok);
 }
 
-// some kind of timing function to start a timer and end then calcuate
 std::shared_ptr<flang::Object> get_time(flang::Interpreter &visitor, const std::vector<std::shared_ptr<flang::Object>>& args, const flang::Token& tok) {
     auto r = verifyArgsCount(args.size(), 0, tok);
     if (r.has_value()) {
@@ -45,6 +46,7 @@ std::shared_ptr<flang::Object> get_time(flang::Interpreter &visitor, const std::
 }
 
 std::shared_ptr<flang::Object> get_elapsed_time(flang::Interpreter &visitor, const std::vector<std::shared_ptr<flang::Object>>& args, const flang::Token& tok) {
+    /// signature getElapsedTimeMS(start, end)
     auto r = verifyArgsCount(args.size(), 2, tok);
     if (r.has_value()) {
         flang::FError(flang::RunTimeError, r.value(), tok.pos).Throw();
@@ -65,13 +67,12 @@ std::shared_ptr<flang::Object> get_elapsed_time(flang::Interpreter &visitor, con
     // Calculate the difference in duration
     auto duration = end_ms - start_ms;
 
-
-    // Return the number of ticks of the duration as a double
     return std::make_shared<flang::IntObject>(duration.count(), tok);
 }
 
 // fill a list with 0
 std::shared_ptr<flang::Object> fill_list(flang::Interpreter &visitor, const std::vector<std::shared_ptr<flang::Object>>& args, const flang::Token& tok) {
+    /// signature fillList(list, count)
     auto r = verifyArgsCount(args.size(), 2, tok);
     if (r.has_value()) {
         flang::FError(flang::RunTimeError, r.value(), tok.pos).Throw();
@@ -93,6 +94,7 @@ std::shared_ptr<flang::Object> fill_list(flang::Interpreter &visitor, const std:
 
 int main(int argc, char* argv[])
 {
+    // TODO: Fix member acess being empty when called ie. list.push
     if (argc == 1 || argc > 2) {
         std::cout << "ERR: flang takes one argument" << std::endl;
         std::cout << "Usage: flang [file]" << std::endl;
@@ -107,7 +109,7 @@ int main(int argc, char* argv[])
     auto global_symbol = flang::SymbolTable();
     visitor.setContext(global_context);
 
-    flang::createFunction(visitor, "print", &printer);
+    flang::createFunction(visitor, "println", &printer);
     flang::createFunction(visitor, "type", &get_type);
     flang::createFunction(visitor, "getTime", &get_time);
     flang::createFunction(visitor, "getElapsedTimeMS", &get_elapsed_time);

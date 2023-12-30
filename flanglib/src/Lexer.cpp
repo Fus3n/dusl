@@ -33,6 +33,8 @@ std::string flang::tokToString(const TokenType tok) {
 			return "Keyword";
 		case TokenType::SemiColon:
 			return ";";
+        case TokenType::Colon:
+            return ":";
 		case TokenType::Comma:
 			return ",";
         case TokenType::Plus:
@@ -142,6 +144,10 @@ std::vector<flang::Token> flang::Lexer::tokenize(std::string_view code, std::str
                 break;
             case ';':
                 m_tokens.emplace_back(std::string(1, m_tok), TokenType::SemiColon, m_pos);
+                nextTok();
+                break;
+            case ':':
+                m_tokens.emplace_back(std::string(1, m_tok), TokenType::Colon, m_pos);
                 nextTok();
                 break;
             case '=':

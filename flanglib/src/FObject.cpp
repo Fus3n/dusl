@@ -1,11 +1,11 @@
 #include "flang/FObject.hpp"
 #include "flang/ErrorType.hpp"
 #include "flang/Interpreter.hpp"
+#include "utils/fcore.h"
 #include <fmt/core.h>
 #include <sstream>
-#include "flang/utils/fcore.h"
 
-std::string flang::NoneObject::ToString() const {
+std::string flang::NoneObject::toString() const {
     return "none";
 }
 
@@ -24,93 +24,25 @@ void flang::NumberError::throwZeroDivisionError(const Token &leftToken, const st
     ).Throw();
 }
 
-std::string flang::ListObject::ToString() const {
-    std::stringstream ss;
-    ss << "[";
-    for (int i = 0; i < items.size(); i++) {
-        ss << items[i]->ToString();
-        if (i != items.size() - 1)
-            ss << ", ";
-    }
-    ss << "]";
-    return ss.str();
-}
-
-bool flang::ListObject::isTrue() const {
-    return !items.empty();
-}
-
-std::shared_ptr<flang::Object> flang::ListObject::splitAtDelimiter(const std::string &value, const std::string &delim, const Token& tok) {
-    std::vector<std::shared_ptr<flang::Object>> items;
-    std::istringstream stream(value);
-    std::string character;
-
-    int i = 0;
-    size_t start = 0, end = 0;
-    while ((end = value.find_first_of(delim, start)) != std::string::npos) {
-        items.push_back(std::move(std::make_shared<StringObject>(value.substr(start, end - start), tok)));
-        start = end + 1; // Move past the delimiter
-        i++;
-    }
-    items.push_back(std::move(std::make_shared<StringObject>(value.substr(start), tok)));
-    return std::make_shared<ListObject>(items, tok);
-}
-
-std::shared_ptr<flang::Object>
-flang::ListObject::callProperty(flang::Interpreter &visitor, const std::shared_ptr<flang::FunctionCallNode> &fn_node) {
-    if (fn_node->tok.value == "get") {
-        auto res= verifyArgsCount(fn_node->args.size(), 1, tok);
-        if (res.has_value()) {
-            FError(RunTimeError, res.value(), tok.pos).Throw();
-        }
-
-        auto first_arg = fn_node->args[0]->accept(visitor);
-        if (auto intObj = dynamic_cast<IntObject*>(first_arg.get())) {
-            if (intObj->value > items.size() - 1) {
-                FError(RunTimeError, fmt::format("Index out of range {}", intObj->value), first_arg->tok.pos).Throw();
-            }
-
-            return items[intObj->value];
-        }
-    } else if (fn_node->tok.value == "push") {
-        auto res= verifyArgsCount(fn_node->args.size(), 1, tok);
-        if (res.has_value())
-            FError(RunTimeError, res.value(), tok.pos).Throw();
-        auto val = fn_node->args[0]->accept(visitor);
-        items.push_back(val);
-        return std::make_shared<NoneObject>(tok);
-    }
-
-    return Object::callProperty(visitor, fn_node);
-}
-
-std::shared_ptr<flang::Object> flang::ListObject::getProperty(const std::string &name) {
-    if (name == "size") {
-        return std::make_shared<IntObject>(items.size(), tok);
-    }
-    return Object::getProperty(name);
-}
-
-std::string flang::FunctionObject::ToString() const {
-    return fmt::format("Function<{}>", func_name);
-}
-
-bool flang::FunctionObject::isTrue() const {
-    return true;
-}
-
-std::string flang::BuiltinFunctionObject::ToString() const {
-    return fmt::format("BuiltinFunctionObject<{}>", tok.value);
-}
-
-bool flang::BuiltinFunctionObject::isTrue() const {
-    return true;
+std::string flang::BuiltinFunctionObject::toString() const {
+    const void * address = static_cast<const void*>(this);
+    return fmt::format("BuiltinFunction<{}, {}>", tok.value, address);
 }
 
 std::shared_ptr<flang::Object>
 flang::BuiltinFunctionObject::call(flang::Interpreter &visitor, std::vector<std::shared_ptr<Object>> &arguments,
                                    const flang::Token &token) {
     return body_func(visitor, arguments, token);
+}
+
+size_t flang::BuiltinFunctionObject::hash(const flang::Token &token) const {
+    const void * address = static_cast<const void*>(this);
+    return std::hash<const void*>{}(address);
+}
+
+std::string flang::FunctionObject::toString() const {
+    const void * address = static_cast<const void*>(this);
+    return fmt::format("Function<{}, {}>", tok.value, address);
 }
 
 std::shared_ptr<flang::Object>
@@ -124,7 +56,8 @@ flang::FunctionObject::call(flang::Interpreter &visitor, std::vector<std::shared
 
     // preserve global symbols
     auto current_ctx_name = visitor.ctx.getName();
-    visitor.ctx.setName(current_ctx_name + "." + tok.value);
+    auto new_name = current_ctx_name + "." + tok.value;
+    visitor.ctx.setName(new_name);
     visitor.ctx.enterScope();
 
     for (int i = 0; i < args.size(); i++) {
@@ -147,7 +80,12 @@ flang::FunctionObject::call(flang::Interpreter &visitor, std::vector<std::shared
 
 }
 
-std::string flang::BooleanObject::ToString() const {
+size_t flang::FunctionObject::hash(const flang::Token &token) const {
+    const void * address = static_cast<const void*>(this);
+    return std::hash<const void*>{}(address);
+}
+
+std::string flang::BooleanObject::toString() const {
     return value ? "true": "false";
 }
 
@@ -155,8 +93,12 @@ bool flang::BooleanObject::isTrue() const {
     return value;
 }
 
-std::string flang::ReturnObject::ToString() const {
-    return return_obj->ToString();
+size_t flang::BooleanObject::hash(const flang::Token &token) const {
+    return std::hash<bool>{}(value);
+}
+
+std::string flang::ReturnObject::toString() const {
+    return return_obj->toString();
 }
 
 bool flang::ReturnObject::isTrue() const {
@@ -169,4 +111,91 @@ std::string flang::ReturnObject::getTypeString() const {
 
 bool flang::ReturnObject::isReturn() const {
     return true;
+}
+
+std::string flang::DictionaryObject::toString() const {
+    std::stringstream ss;
+    ss << "{";
+    for (auto& item: items) {
+        ss << std::get<0>(item.second)->toString();
+        ss << ": ";
+        ss << std::get<1>(item.second)->toString();
+        ss << ", ";
+    }
+    ss << "}";
+    return ss.str();
+}
+
+std::string flang::DictionaryObject::getTypeString() const {
+    return "dict";
+}
+
+std::shared_ptr<flang::Object> flang::DictionaryObject::callProperty(flang::Interpreter &visitor, const std::shared_ptr<flang::FunctionCallNode> &fn_node) {
+    if (fn_node->tok.value == "get") {
+        auto res = verifyArgsCount(fn_node->args.size(), 1, tok);
+        if (res.has_value()) {
+            FError(RunTimeError,
+                   res.value(),
+                   fn_node->tok.pos
+            ).Throw();
+        }
+        auto first_arg = fn_node->args[0]->accept(visitor);
+        auto hashed = first_arg->hash(tok);
+        auto it = items.find(hashed);
+        if (it == items.end()) {
+            FError(NameError,
+                   fmt::format("key {} not found in dict", first_arg->toString()),
+                   fn_node->tok.pos
+                   ).Throw();
+
+        }
+        return std::get<1>(it->second);
+    } else if (fn_node->tok.value == "keys") {
+        auto res = verifyArgsCount(fn_node->args.size(), 0, tok);
+        if (res.has_value()) {
+            FError(RunTimeError,
+                   res.value(),
+                   fn_node->tok.pos
+            ).Throw();
+        }
+
+        auto list = std::make_shared<ListObject>(tok);
+        list->items.reserve(items.size());
+        for (auto& item: items) {
+            list->items.push_back(std::get<0>(item.second));
+        }
+
+        return list;
+    } else if (fn_node->tok.value == "values") {
+        auto res = verifyArgsCount(fn_node->args.size(), 0, tok);
+        if (res.has_value()) {
+            FError(RunTimeError,
+                   res.value(),
+                   fn_node->tok.pos
+            ).Throw();
+        }
+
+        auto list = std::make_shared<ListObject>(tok);
+        list->items.reserve(items.size());
+        for (auto& item: items) {
+            list->items.push_back(std::get<1>(item.second));
+        }
+
+        return list;
+    }
+
+    return Object::callProperty(visitor, fn_node);
+}
+
+std::shared_ptr<flang::Object> flang::DictionaryObject::getProperty(const std::string &name) {
+    auto hashed = std::hash<std::string>{}(name);
+    auto it = items.find(hashed);
+    if (it == items.end()) {
+        FError(NameError,
+               fmt::format("key {} not found in dict", name),
+               tok.pos
+        ).Throw();
+    }
+
+    return std::get<1>(it->second);
 }

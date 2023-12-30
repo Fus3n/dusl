@@ -3,8 +3,9 @@
 #include <fmt/core.h>
 #include "flang/utils/fcore.h"
 
+#include <functional>
 
-std::string flang::StringObject::ToString() const {
+std::string flang::StringObject::toString() const {
     return fmt::format("\"{}\"", value);
 }
 
@@ -89,4 +90,8 @@ flang::StringObject::not_equal_to(const std::shared_ptr<Object> &other, const fl
         return std::make_shared<BooleanObject>(value != strObj->value, tok);
     }
     return std::make_shared<BooleanObject>(true, tok);
+}
+
+size_t flang::StringObject::hash(const flang::Token &token) const {
+    return std::hash<std::string>{}(value);
 }

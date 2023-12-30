@@ -9,8 +9,13 @@
 - ~~Complete member access operators functionality (partial complete)~~
 - for loops
 - ~~function recursive calls~~
-- unary operations
-- while loops
+- ~~add hashing for objects~~
+- ~~add dictionary support~~
+- allow calling functions in-line expression
+- add closures
+- make builtin type's functions into c++ static functions (WIP)
+- unary operations (WIP)
+- ~~while loops~~
 - struct functions
 - struct defining functionality
 - struct access functionality
@@ -19,5 +24,6 @@
 
 
 ### Things To Add (C++ side)
+- Move all builtin-functions/variables into separate file and functions to load it (WIP)
 - Standard library (io, math, simple networking)
 - More streamlined process of adding functions

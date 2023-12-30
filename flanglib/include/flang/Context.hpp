@@ -13,7 +13,7 @@ namespace flang {
         Context() = default;
 
         std::string getName();
-        void setName(std::string context_name);
+        void setName(std::string& context_name);
 
         void enterScope();
         void exitScope();

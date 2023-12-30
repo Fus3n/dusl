@@ -2,8 +2,8 @@
 #include <utility>
 
 
-void flang::Context::setName(std::string context_name) {
-    this->name = std::move(context_name);
+void flang::Context::setName(std::string& context_name) {
+    this->name = context_name;
 }
 
 std::string flang::Context::getName() {
