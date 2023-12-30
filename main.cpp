@@ -91,9 +91,15 @@ std::shared_ptr<flang::Object> fill_list(flang::Interpreter &visitor, const std:
 
 
 
-int main()
+int main(int argc, char* argv[])
 {
-    std::string file_name = "../test.flin";
+    if (argc == 1 || argc > 2) {
+        std::cout << "ERR: flang takes one argument" << std::endl;
+        std::cout << "Usage: flang [file]" << std::endl;
+        return 1;
+    }
+
+    std::string file_name = argv[1];
     flang::Interpreter visitor;
 
     flang::Context global_context;
