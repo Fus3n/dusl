@@ -4,19 +4,16 @@ fn fizzBuzz(i) {
     elseif (i % 5 == 0) { return "Buzz" }
     else { return i }
 }
-println(println)
-println(fizzBuzz)
 
 totalCount = 1000
 v = []
 fillList(v, totalCount)
-count = 0
 start = getTime()
-while count < 1000 {
-    v.push(fizzBuzz(count))
-    count = count + 1
+for count from 0:totalCount {
+    v[count] = fizzBuzz(count)
 }
+
 end = getTime()
 elapsed = getElapsedTimeMS(start, end)
-println(v)
+#println(v)
 println(elapsed)

@@ -109,6 +109,9 @@ flang::Lexer::Lexer(): m_tok('\0'), m_tok_idx(0) {}
 
 std::vector<flang::Token> flang::Lexer::tokenize(std::string_view code, std::string_view _file_name)
 {
+    if (code.empty())
+        return m_tokens;
+
     m_code = code;
     file_name = _file_name;
     m_pos.code = code;
@@ -120,7 +123,6 @@ std::vector<flang::Token> flang::Lexer::tokenize(std::string_view code, std::str
             nextTok();
             continue;
         }
-
         switch (m_tok) {
             case '#':
                 while (m_tok != END_OF_FILE && m_tok != '\n') {

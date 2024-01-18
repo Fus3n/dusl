@@ -13,12 +13,15 @@ namespace flang {
         ElseIfKey,
         FuncDefKey,
         WhileKey,
+        BreakKey,
         ForKey,
         StructKey,
         AndKey,
         OrKey,
         NotKey,
-        ReturnKey
+        ReturnKey,
+        FromKey,
+        InKey,
     };
 
     class LanguageManager {

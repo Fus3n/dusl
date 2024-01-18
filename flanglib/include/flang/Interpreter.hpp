@@ -11,9 +11,9 @@ namespace flang {
 
         void setContext(Context _ctx);
 
-        std::shared_ptr<Object> visit(const std::shared_ptr<DataNode>& node);
+        flang::FResult visit(const std::shared_ptr<DataNode>& node);
 
-        std::shared_ptr<Object> visit(ProgramNode& node);
-        std::shared_ptr<Object> visit(BlockNode& node);
+        flang::FResult visit(ProgramNode &node);
+        flang::FResult visit(BlockNode &node);
     };
 }

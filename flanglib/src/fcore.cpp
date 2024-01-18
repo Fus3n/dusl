@@ -1,6 +1,10 @@
 #include "flang/utils/fcore.h"
+#include "flang/utils/common.h"
 #include <fmt/core.h>
 #include <fstream>
+#include <memory>
+#include <utility>
+
 
 void flang::createFunction(flang::Interpreter &visitor, std::string name, flang::BuiltinFunctionObject::FunctionPointer func) {
     flang::Token tok;
@@ -10,7 +14,7 @@ void flang::createFunction(flang::Interpreter &visitor, std::string name, flang:
     );
 }
 
-std::optional<std::string> flang::verifyArgsCount(int current_count, int expected_count, const flang::Token& tok, bool fixed_args) {
+std::optional<std::string> flang::verifyArgsCount(size_t current_count, size_t expected_count, const flang::Token& tok, bool fixed_args) {
     if (fixed_args) {
         if (current_count != expected_count)
             return fmt::format("{} expects exactly {} arguments but received {}", tok.value, expected_count, current_count);
@@ -39,14 +43,33 @@ bool flang::runSingleFile(const std::string& file_name, flang::Interpreter &visi
     }
     file.close();
 
+    // trim code
+    flang::str_trim(code);
+
+    if (code.empty()) {
+        return false;
+    }
+
     auto tokens = lexer.tokenize(code, file_name);
     auto ast = parser.parse(code, file_name, tokens);
 
-    std::shared_ptr<flang::Object> return_val;
-    return_val = visitor.visit(ast);
+//    for (auto& stmt : ast.statements) {
+//        // test
+//        fmt::println("{}", stmt->toString());
+//    }
+//    return 1;
+    auto return_val = visitor.visit(ast);
 
-    if (return_val) {
-        fmt::println("{}", return_val->toString());
+    if (return_val.isError()){
+        fmt::println("{}", return_val.err->toString());
+        return false;
+    }
+
+    if (return_val.result) {
+        if (return_val.result->getTypeString() == "none" || return_val.result->isBreak()) {
+            return false; // don't print anything if its none
+        }
+        fmt::println("{}", return_val.result->toString());
         return false;
     } else {
         fmt::println("Return value is null");
@@ -55,6 +78,27 @@ bool flang::runSingleFile(const std::string& file_name, flang::Interpreter &visi
 
 }
 
-bool flang::loadSTD(flang::Interpreter &visitor) {
-    return false;
+void flang::addGlobalVariable(flang::Interpreter &visitor, const std::string& name, flang::IntObject *value) {
+    visitor.ctx.currenSymbol().setValue(name, std::make_shared<flang::IntObject>(*value));
 }
+
+void flang::addGlobalVariable(flang::Interpreter &visitor, const std::string &name, flang::StringObject *value) {
+    visitor.ctx.currenSymbol().setValue(name, std::make_shared<flang::StringObject>(*value));
+}
+void flang::addGlobalVariable(flang::Interpreter &visitor, const std::string &name, flang::BooleanObject *value) {
+    visitor.ctx.currenSymbol().setValue(name, std::make_shared<flang::BooleanObject>(*value));
+}
+
+[[maybe_unused]] flang::IntObject flang::createInt(int64_t value) {
+    return flang::IntObject(value, flang::Token());
+}
+
+flang::StringObject flang::createString(std::string value) {
+    return flang::StringObject(std::move(value), flang::Token());
+}
+
+flang::BooleanObject flang::createBool(bool value) {
+    return {value, flang::Token()};
+}
+
+

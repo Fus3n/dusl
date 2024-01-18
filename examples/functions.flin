@@ -1,0 +1,59 @@
+\ lambdas \
+fn createPerson(name, age, role) {
+    return {
+       "name": name,
+       "age": age,
+       "role": role,
+
+       "setName": fn (obj, newName) {
+           obj['name'] = newName
+       },
+       "setAge": fn (obj, newAge) {
+           obj['age'] = newAge
+       },
+       "setRole": fn (obj, newRole) {
+           obj['role'] = newRole
+       },
+   }
+}
+
+person = createPerson("John Doe", 28, "Developer")
+
+println("Before:")
+println(person['name'])
+println(person['age'])
+println(person['role'])
+
+person['setName'](person, "Walter White")
+person['setAge'](person, 50)
+person['setRole'](person, "Chemistry teacher")
+
+println("After:")
+println(person['name'])
+println(person['age'])
+println(person['role'])
+
+
+
+\ Factorial \
+fn factorial(n) {
+    if n == 0 {
+        return 1
+    } else {
+        return n * factorial(n - 1)
+    }
+}
+
+fn displayFactorial() {
+    print("Enter a number to calculate its factorial: ")
+    input = readLine()
+    num = input.toInt()
+
+    result = factorial(num)
+    println("Factorial of", num, "is:", result)
+}
+
+
+displayFactorial()
+
+

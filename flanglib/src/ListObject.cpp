@@ -42,83 +42,160 @@ std::shared_ptr<flang::Object> flang::ListObject::splitAtDelimiter(const std::st
     return std::make_shared<ListObject>(list);
 }
 
-std::shared_ptr<flang::Object>
-flang::ListObject::callProperty(flang::Interpreter &visitor, const std::shared_ptr<flang::FunctionCallNode> &fn_node) {
-    auto func = functions.find(fn_node->tok.value);
-    if (func !=  functions.end()) {
-        return func->second(*this, visitor, fn_node);
-    }
-    std::cout << "sos \n";
-    return Object::callProperty(visitor, fn_node);
-}
-
-std::shared_ptr<flang::Object> flang::ListObject::getProperty(const std::string &name) {
+flang::FResult flang::ListObject::getProperty(const std::string& name, const Token& token) {
     if (name == "size") {
-        return std::make_shared<IntObject>(items.size(), tok);
+        return FResult::createResult(std::make_shared<IntObject>(items.size(), tok), tok);
     }
-    return Object::getProperty(name);
+    return Object::getProperty(name, tok);
 }
 
-std::shared_ptr<flang::Object>
+flang::FResult
 flang::ListObject::get(ListObject& list, flang::Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node) {
 
     auto res= verifyArgsCount(fn_node->args.size(), 1, list.tok);
     if (res.has_value()) {
-        FError(RunTimeError, res.value(), fn_node->tok.pos).Throw();
+        return FResult::createError(RunTimeError, res.value(), fn_node->tok);
     }
 
     auto first_arg = fn_node->args[0]->accept(visitor);
-    if (auto intObj = dynamic_cast<IntObject*>(first_arg.get())) {
-        if (intObj->value > list.items.size() - 1) {
-            FError(RunTimeError, fmt::format("Index out of range {}", intObj->value), first_arg->tok.pos).Throw();
+    if (first_arg.isError())
+        return first_arg;
+
+    if (auto intObj = dynamic_cast<IntObject*>(first_arg.result.get())) {
+        if (intObj->value == -1) {
+            return FResult::createResult(std::make_shared<IntObject>(list.items.size() - 1, first_arg.result->tok), fn_node->tok);
         }
-        return list.items[intObj->value];
+        if (intObj->value > list.items.size() - 1) {
+            return FResult::createError(RunTimeError, fmt::format("Index out of range {}", intObj->value), first_arg.result->tok);
+        }
+        return FResult::createResult(list.items[intObj->value], fn_node->tok);
     }
 }
 
 // TODO: Fix calling c++ function from language
-std::shared_ptr<flang::Object>
-flang::ListObject::push(ListObject& list, flang::Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node) {
+flang::FResult
+flang::ListObject::push(ListObject& list, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node) {
     auto res= verifyArgsCount(fn_node->args.size(), 1, list.tok);
     if (res.has_value())
-        FError(RunTimeError, res.value(), fn_node->tok.pos).Throw();
+        return FResult::createError(RunTimeError, res.value(), fn_node->tok);
+
     auto val = fn_node->args[0]->accept(visitor);
-    list.items.push_back(val); // getting segfault
-    return std::make_shared<NoneObject>(list.tok);
+    if (val.isError()) return val;
+
+    list.items.push_back(std::move(val.result)); // getting segfault
+    return FResult::createResult(std::make_shared<NoneObject>(list.tok), fn_node->tok);
 }
 
-std::shared_ptr<flang::Object>
-flang::ListObject::set(ListObject& list, flang::Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node) {
+flang::FResult
+flang::ListObject::set(ListObject& list, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node) {
     auto res= verifyArgsCount(fn_node->args.size(), 2, list.tok);
     if (res.has_value())
-        FError(RunTimeError, res.value(), fn_node->tok.pos).Throw();
+        return FResult::createError(RunTimeError, res.value(), fn_node->tok);
 
     auto index = fn_node->args[0]->accept(visitor);
+    if (index.isError()) return index;
     auto val = fn_node->args[1]->accept(visitor);
+    if (val.isError()) return val;
 
-    if (auto intObj = dynamic_cast<IntObject*>(index.get())) {
+    if (auto intObj = dynamic_cast<IntObject*>(index.result.get())) {
         if (intObj->value > list.items.size() - 1)
-            FError(RunTimeError, fmt::format("Index out of range {}", intObj->value), index->tok.pos).Throw();
+            return FResult::createError(IndexError, fmt::format("Index out of range {}", intObj->value), index.result->tok);
 
-        list.items[intObj->value] = val;
+        list.items[intObj->value] = std::move(val.result);
     }
 
-    return std::make_shared<NoneObject>(list.tok);
+    return FResult::createResult(std::make_shared<NoneObject>(list.tok), fn_node->tok);
 }
 
 std::string flang::ListObject::getTypeString() const {
     return "list";
 }
 
-void flang::ListObject::preload_functions() {
-    functions["set"] = ListObject::set;
-    functions["push"] = ListObject::push;
-    functions["get"] = ListObject::get;
+flang::FResult flang::ListObject::index(std::shared_ptr<ListObject> idx_args) {
+    if (idx_args->items.size() != 1) {
+        return FResult::createError(
+            IndexError,
+            fmt::format("list index takes 1 argument but {} were given", idx_args->items.size()),
+            tok
+        );
+    }
 
+    auto first_arg = idx_args->items[0];
+    if (auto intObj = dynamic_cast<IntObject*>(first_arg.get())) {
+        if (intObj->value > items.size() - 1) {
+            return FResult::createError(
+                    IndexError,
+                    fmt::format("Index out of range {}", intObj->value),
+                first_arg->tok
+            );
+        }
+        return FResult::createResult(items[intObj->value], tok);
+    }
+
+    return Object::index(idx_args);
 }
 
-flang::ListObject::ListObject(Token tok) : Object(std::move(tok)) {
-    preload_functions();
+flang::FResult
+flang::ListObject::index_assign(std::shared_ptr<Object> &right, std::shared_ptr<ListObject> idx_args) {
+    if (idx_args->items.size() != 1) {
+        return FResult::createError(
+                IndexError,
+                fmt::format("list index takes 1 argument but {} were given", idx_args->items.size()),
+                tok
+        );
+    }
+
+    auto first_arg = idx_args->items[0];
+    if (auto intObj = dynamic_cast<IntObject*>(first_arg.get())) {
+        if (intObj->value > items.size() - 1) {
+            return FResult::createError(
+                    IndexError,
+                    fmt::format("Index out of range {}", intObj->value),
+                    first_arg->tok
+            );
+        }
+        items[intObj->value] = right;
+        return FResult::createResult(right, tok);
+    }
+
+    return Object::index_assign(right, idx_args);
 }
 
+flang::FResult flang::ListObject::for_each(ListObject &list, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node) {
+    auto res= verifyArgsCount(fn_node->args.size(), 1, list.tok);
+    if (res.has_value()) {
+        return FResult::createError(RunTimeError, res.value(), fn_node->tok);
+    }
+
+    auto callback_obj = fn_node->args[0]->accept(visitor);
+    if (callback_obj.isError()) return callback_obj;
+
+    FResult last;
+    for (auto & item : list.items) {
+        std::vector<std::shared_ptr<Object>> args {
+           item,
+        };
+        last = callback_obj.result->call(visitor, args, item->tok);
+        if (last.isError())
+            return last;
+        else if (last.result->isReturn())
+            break;
+    }
+
+    return last;
+}
+
+flang::FResult flang::ListObject::pop_back(ListObject &list, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node) {
+    auto res= verifyArgsCount(fn_node->args.size(), 0, list.tok);
+    if (res.has_value())
+        return FResult::createError(RunTimeError, res.value(), fn_node->tok);
+
+    if (!list.items.empty()) {
+        auto r = list.items.back();
+        list.items.pop_back();
+        return FResult::createResult(r, fn_node->tok);
+    }
+
+    return FResult::createError(IndexError, "Cannot pop from empty list", fn_node->tok);
+}
 

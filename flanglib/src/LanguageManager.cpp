@@ -8,11 +8,14 @@ std::unordered_map<flang::KeywordType, std::string_view> flang::LanguageManager:
         {FuncDefKey, "fn"},
         {ForKey, "for"},
         {WhileKey, "while"},
+        {BreakKey, "break"},
         {StructKey, "struct"},
         {AndKey, "and"},
         {OrKey, "or"},
         {NotKey, "not"},
         {ReturnKey, "return"},
+        {FromKey, "from"},
+        {InKey, "in"},
 };
 
 void flang::LanguageManager::reAssignKeyword(flang::KeywordType type, std::string_view keyword) {

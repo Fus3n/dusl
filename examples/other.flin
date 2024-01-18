@@ -1,0 +1,8 @@
+
+
+
+value = 0
+if not value {
+    println("negated")
+}
+status = system("clear")

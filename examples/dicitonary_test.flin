@@ -1,15 +1,15 @@
 fn some() {
-    println("Funny word")
+    println("Hello world")
 }
-
 
 user = { "email": "sus@gmail.co", "pass": "secret123", some: some }
 
-# two ways of getting values
-email = user.email
-pass = user.get("pass")
+# two ways of getting values from dictionary
+email = user.get("email")
+pass = user['pass']
 
+println(email, pass)
 
 funny = user.keys().get(0)
-funny()
 
+funny()

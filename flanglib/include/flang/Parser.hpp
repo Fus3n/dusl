@@ -19,7 +19,9 @@ namespace flang {
         DataNode * statement();
         DataNode * expression();
         DataNode * comparison();
-        DataNode * dotExpr();
+        DataNode * rangeExpr();
+        DataNode * postExpr();
+        DataNode * preExpr();
         DataNode * factor();
         DataNode * term();
         DataNode * atom();
@@ -30,6 +32,7 @@ namespace flang {
         DataNode * bracketExpr();
         DataNode * ifStatement();
         DataNode * whileStatement();
+        DataNode * forStatement();
         DataNode * returnStatement();
 
         BlockNode * scopeBlock(std::optional<Token> tok = std::nullopt);
@@ -38,7 +41,7 @@ namespace flang {
         // helpers
         DataNode * parseAssignment();
         DataNode * parseStructBody();
-        DataNode * parseList();
+        ListNode * parseList();
         DataNode * parseDict();
 
         std::vector<std::shared_ptr<flang::DataNode>> argumentParser();

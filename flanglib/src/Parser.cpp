@@ -18,7 +18,7 @@ void flang::Parser::eat(TokenType tt) {
         }
     } else {
         FError(SyntaxError,
-                fmt::format("Invalid Syntax {}, expected {}", tokToString(m_token.tok), tokToString(tt)),
+                fmt::format(R"(Invalid Syntax "{}", expected "{}")", tokToString(m_token.tok), tokToString(tt)),
                 m_token.pos
                 ).Throw();
 
@@ -55,7 +55,15 @@ flang::DataNode * flang::Parser::statement() {
             return returnStatement();
         } else if (m_token.value == LanguageManager::getValue(WhileKey)) {
             return whileStatement();
-        } else {
+        } else if (m_token.value == LanguageManager::getValue(ForKey)) {
+            return forStatement();
+        } else if (m_token.value == LanguageManager::getValue(BreakKey)) {
+            auto break_tok = m_token;
+            eat(TokenType::Keyword);
+            eat(TokenType::SemiColon);
+            return new BreakNode(break_tok);
+        }
+        else {
             m_token.pos.setCodeAndFile(m_code, m_file_name);
             FError(UnimplementedError,
                    fmt::format("Keyword \"{}\", is not yet supported", m_token.value),
@@ -87,15 +95,15 @@ flang::BlockNode * flang::Parser::scopeBlock(std::optional<Token> tok)  {
 }
 
 flang::DataNode * flang::Parser::expression() {
-    DataNode* left = comparison(); // comparison returns a DataNode*
+    DataNode* left = rangeExpr();
 
     while (
-            m_token.cmp(TokenType::Keyword, LanguageManager::getValue(KeywordType::AndKey)) |
+            m_token.cmp(TokenType::Keyword, LanguageManager::getValue(KeywordType::AndKey)) ||
             m_token.cmp(TokenType::Keyword, LanguageManager::getValue(KeywordType::OrKey))
             ) {
         auto op = m_token;
         eat(op.tok);
-        auto right = comparison();
+        auto right = rangeExpr();
 
         if (op.value == LanguageManager::getValue(KeywordType::AndKey)) {
             left = new LogicalOpNode(left, right, LogicalOpNode::OP_AND, op);
@@ -107,15 +115,30 @@ flang::DataNode * flang::Parser::expression() {
     return left;
 }
 
+flang::DataNode * flang::Parser::rangeExpr() {
+    DataNode* left = comparison();
+
+    if (m_token.cmp(TokenType::Colon)) {
+        auto op = m_token;
+        eat(op.tok);
+
+        auto right = comparison();
+
+        left = new RangeNode(left, right, op);
+    }
+
+    return left;
+}
+
 flang::DataNode * flang::Parser::comparison() {
     DataNode* left = atom();
 
     while (
-            m_token.cmp(TokenType::GreaterThan) |
-            m_token.cmp(TokenType::LessThan) |
-            m_token.cmp(TokenType::GreaterOrEqual) |
-            m_token.cmp(TokenType::LessOrEqual) |
-            m_token.cmp(TokenType::EqualTo) |
+            m_token.cmp(TokenType::GreaterThan) ||
+            m_token.cmp(TokenType::LessThan) ||
+            m_token.cmp(TokenType::GreaterOrEqual) ||
+            m_token.cmp(TokenType::LessOrEqual) ||
+            m_token.cmp(TokenType::EqualTo) ||
             m_token.cmp(TokenType::NotEqualTo)
             ) {
 
@@ -142,29 +165,62 @@ flang::DataNode * flang::Parser::atom() {
 }
 
 flang::DataNode * flang::Parser::term() {
-    DataNode* left = dotExpr();
+    DataNode* left = postExpr();
 
     while (m_token.tok == TokenType::Multiply || m_token.tok == TokenType::Divide || m_token.tok == TokenType::Modulo) {
         auto op = m_token;
         eat(op.tok);
-        auto right = dotExpr();
+        auto right = postExpr();
         left = new BinOpNode(left, right, BinOpNode::TokToOperation(op), op);
     }
 
     return left;
 }
 
-flang::DataNode * flang::Parser::dotExpr() {
-    DataNode* left = factor();
+flang::DataNode * flang::Parser::postExpr() {
+    DataNode* left = preExpr();
 
-    while (m_token.cmp(TokenType::Dot)) {
-        auto op = m_token;
-        eat(op.tok);
-        auto right = factor();
-        left = new MemberAccessNode(left, right, op);
+    while (m_token.cmp(TokenType::LBracket) || m_token.cmp(TokenType::LSqrBracket) || m_token.cmp(TokenType::Dot)) {
+        auto tok = m_token;
+        if (tok.cmp(TokenType::LBracket)) {
+            auto args = argumentParser();
+            left = new FunctionCallNodeEXPR(left, args, tok);
+        } else if (tok.cmp(TokenType::LSqrBracket)) {
+            auto indexArgs = parseList();
+
+            if (m_token.cmp(TokenType::Equal)) {
+                eat(Equal);
+                auto right = preExpr(); // TODO: possibly needs to change to "expression"
+                left = new IndexAssignNode(left, right, indexArgs, tok);
+            } else {
+                left = new IndexNode(left, indexArgs, tok);
+            }
+        } else if (tok.cmp(TokenType::Dot)) {
+            auto op = m_token;
+            eat(op.tok);
+
+            auto right = preExpr();
+            left = new MemberAccessNode(left, right, op);
+        }
     }
 
     return left;
+}
+
+flang::DataNode * flang::Parser::preExpr() {
+    DataNode* left = nullptr;
+
+    while (m_token.cmp(TokenType::Keyword) && m_token.value == LanguageManager::getValue(NotKey)) {
+        auto op = m_token;
+        eat(Keyword);
+        auto expr = factor();
+        left = new UnaryOpNode(expr, UnaryOpNode::Operations::OP_NOT, op);
+    }
+
+    if (!left)
+        return factor();
+    else
+        return left;
 }
 
 flang::DataNode * flang::Parser::factor() {
@@ -197,14 +253,13 @@ flang::DataNode * flang::Parser::factor() {
         return parseList();
     } else if (m_token.cmp(TokenType::Plus) || m_token.cmp(TokenType::Minus)) {
         return parseUnary();
-    } else if (m_token.cmp(TokenType::Keyword) && m_token.value == LanguageManager::getValue(NotKey)) {
-        auto op = m_token;
-        eat(Keyword);
-        auto expr = expression();
-        return new UnaryOpNode(expr, UnaryOpNode::Operations::OP_NOT, op);
-    } else if (m_token.cmp(TokenType::LBrace)) {
-        return parseDict();
     }
+    else if (m_token.cmp(TokenType::LBrace)) {
+        return parseDict();
+    } else if (m_token.value == LanguageManager::getValue(FuncDefKey)) {
+        return funcDef();
+    }
+
     m_token.pos.setCodeAndFile(m_code, m_file_name);
     FError(SyntaxError,
            fmt::format("Unexpected expression \"{}\"", m_token.ToString()),
@@ -215,10 +270,11 @@ flang::DataNode * flang::Parser::factor() {
 }
 
 flang::DataNode * flang::Parser::bracketExpr() {
-    this->eat(TokenType::LBracket);
-    auto innerExpr = expression();
-    this->eat(TokenType::RBracket);
-    return innerExpr;
+    auto tok = m_token;
+    eat(TokenType::LBracket);
+    auto xp = expression();
+    eat(TokenType::RBracket);
+    return xp;
 }
 
 flang::DataNode * flang::Parser::funcCall() {
@@ -229,14 +285,21 @@ flang::DataNode * flang::Parser::funcCall() {
 }
 
 flang::DataNode * flang::Parser::funcDef() {
+    auto tok = m_token;
     eat(Keyword); // skip "fn" keyword
 
-    auto func_name = m_token;
-    eat(Ident);
+    std::string func_name = m_token.value;
+    bool is_anon = false;
+    if (m_token.cmp(Ident)) {
+        eat(Ident);
+    } else {
+        func_name = "anonymous";
+        is_anon = true;
+    }
 
     auto arguments = argumentParser();
-    auto block = scopeBlock(func_name);
-    return new FunctionDefNode(func_name, std::move(arguments), block);
+    auto block = scopeBlock(tok);
+    return new FunctionDefNode(func_name, std::move(arguments), block, tok, is_anon);
 }
 
 std::vector<std::shared_ptr<flang::DataNode>> flang::Parser::argumentParser() {
@@ -265,7 +328,7 @@ std::optional<flang::Token> flang::Parser::peek() {
     return {};
 }
 
-flang::DataNode * flang::Parser::parseList() {
+flang::ListNode * flang::Parser::parseList() {
     auto curr_tok = m_token;
     std::vector<std::shared_ptr<DataNode>> items;
     eat(LSqrBracket);
@@ -408,6 +471,28 @@ flang::DataNode *flang::Parser::parseDict() {
 
     eat(RBrace);
     return new DictionaryNode(std::move(items), curr_tok);
+}
+
+flang::DataNode *flang::Parser::forStatement() {
+    auto curr_tok = m_token;
+    eat(Keyword); // skip "for" keyword
+
+    auto ident = m_token;
+    eat(Ident);
+
+    auto from_tok = m_token;
+    eat(Keyword); // skip "from" keyword
+    if (from_tok.value != LanguageManager::getValue(FromKey)) {
+        FError(SyntaxError,
+               fmt::format("Expected keyword \"{}\" ", LanguageManager::getValue(FromKey)),
+               from_tok.pos
+               ).Throw();
+    }
+
+    auto expr = expression();
+    auto block = scopeBlock();
+
+    return new ForLoopNode(ident.value, expr, block, curr_tok);
 }
 
 

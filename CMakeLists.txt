@@ -3,19 +3,19 @@ project(flang)
 
 set(CMAKE_CXX_STANDARD 17)
 
-set(iS_DEBUG, FALSE)
-
-if(TRUE)
-    set(CMAKE_CXX_FLAGS_RELEASE "-O0")
-    set(CMAKE_C_FLAGS_RELEASE "-O0")
-    set(CMAKE_C_FLAGS_DEBUG "-O0")
-    set(CMAKE_CXX_FLAGS_DEBUG "-O0")
-else()
-    set(CMAKE_CXX_FLAGS_RELEASE "-O3")
-    set(CMAKE_C_FLAGS_RELEASE "-O3")
-    set(CMAKE_C_FLAGS_DEBUG "-O3")
-    set(CMAKE_CXX_FLAGS_DEBUG "-O3")
-endif()
+#set(iS_DEBUG, TRUE)
+#
+#if(iS_DEBUG)
+#    set(CMAKE_CXX_FLAGS_RELEASE "-O0")
+#    set(CMAKE_C_FLAGS_RELEASE "-O0")
+#    set(CMAKE_C_FLAGS_DEBUG "-O0")
+#    set(CMAKE_CXX_FLAGS_DEBUG "-O0")
+#else()
+#    set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+#    set(CMAKE_C_FLAGS_RELEASE "-O3")
+#    set(CMAKE_C_FLAGS_DEBUG "-O3")
+#    set(CMAKE_CXX_FLAGS_DEBUG "-O3")
+#endif()
 
 add_subdirectory(flanglib)
 

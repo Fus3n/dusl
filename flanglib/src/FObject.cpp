@@ -17,11 +17,12 @@ std::string flang::NoneObject::getTypeString() const {
     return "none";
 }
 
-void flang::NumberError::throwZeroDivisionError(const Token &leftToken, const std::shared_ptr<Object> &other) {
-    FError(ZeroDivisionError,
-           fmt::format("division by zero {} with {}", tokToString(leftToken.tok), tokToString(other->tok.tok)),
-           leftToken.pos
-    ).Throw();
+flang::FResult flang::NumberError::throwZeroDivisionError(const Token &leftToken, const std::shared_ptr<Object> &other) {
+    return FResult::createError(
+        ZeroDivisionError,
+        fmt::format("division by zero {} with {}", tokToString(leftToken.tok), tokToString(other->tok.tok)),
+        leftToken
+    );
 }
 
 std::string flang::BuiltinFunctionObject::toString() const {
@@ -29,29 +30,32 @@ std::string flang::BuiltinFunctionObject::toString() const {
     return fmt::format("BuiltinFunction<{}, {}>", tok.value, address);
 }
 
-std::shared_ptr<flang::Object>
-flang::BuiltinFunctionObject::call(flang::Interpreter &visitor, std::vector<std::shared_ptr<Object>> &arguments,
-                                   const flang::Token &token) {
+flang::FResult
+flang::BuiltinFunctionObject::call(Interpreter &visitor, std::vector<std::shared_ptr<Object>> &arguments,
+                                   const Token &token) {
+
     return body_func(visitor, arguments, token);
 }
 
-size_t flang::BuiltinFunctionObject::hash(const flang::Token &token) const {
+flang::FResult flang::BuiltinFunctionObject::hash(const flang::Token &token) const {
     const void * address = static_cast<const void*>(this);
-    return std::hash<const void*>{}(address);
+    return FResult::createResult(
+        std::make_shared<IntObject>(std::hash<const void*>{}(address), token),
+        token
+    );
 }
 
 std::string flang::FunctionObject::toString() const {
     const void * address = static_cast<const void*>(this);
-    return fmt::format("Function<{}, {}>", tok.value, address);
+    return fmt::format("Function<{}, {}>", func_name, address);
 }
 
-std::shared_ptr<flang::Object>
-flang::FunctionObject::call(flang::Interpreter &visitor, std::vector<std::shared_ptr<Object>> &arguments,
-                            const flang::Token &token) {
+flang::FResult
+flang::FunctionObject::call(Interpreter &visitor, std::vector<std::shared_ptr<Object>> &arguments,
+                            const Token &token) {
 
     if (args.size() < arguments.size() || args.size() > arguments.size()) {
-        FError(NameError, fmt::format("{} takes {} arguments but {} were given", tok.value, args.size(), args.size()), tok.pos)
-                .Throw();
+        return FResult::createError(NameError, fmt::format("{} takes {} arguments but {} were given", tok.value, args.size(), arguments.size()), tok);
     }
 
     // preserve global symbols
@@ -68,21 +72,28 @@ flang::FunctionObject::call(flang::Interpreter &visitor, std::vector<std::shared
     }
 
     auto block_res = block->accept(visitor);
+    if (block_res.isError())
+        return block_res; // TODO: maybe exit scope before returning?
+
     visitor.ctx.exitScope();
     visitor.ctx.setName(current_ctx_name);
 
-    if (block_res->isReturn()) {
+    if (block_res.result->isReturn()) {
         // unwrap the return wrapper
-        auto ret = dynamic_cast<ReturnObject*>(block_res.get());
-        return ret->return_obj;
+        auto ret = dynamic_cast<ReturnObject*>(block_res.result.get());
+        return FResult::createResult(ret->return_obj, tok);
     }
-    return block_res;
 
+    // TODO: decide weather to return none by default or last expression
+    return FResult::createResult(block_res.result, tok);
 }
 
-size_t flang::FunctionObject::hash(const flang::Token &token) const {
+flang::FResult flang::FunctionObject::hash(const flang::Token &token) const {
     const void * address = static_cast<const void*>(this);
-    return std::hash<const void*>{}(address);
+    return FResult::createResult(
+        std::make_shared<IntObject>(std::hash<const void*>{}(address), token),
+        token
+    );
 }
 
 std::string flang::BooleanObject::toString() const {
@@ -93,8 +104,11 @@ bool flang::BooleanObject::isTrue() const {
     return value;
 }
 
-size_t flang::BooleanObject::hash(const flang::Token &token) const {
-    return std::hash<bool>{}(value);
+flang::FResult flang::BooleanObject::hash(const flang::Token &token) const {
+    return FResult::createResult(
+        std::make_shared<IntObject>(std::hash<bool>{}(value), token),
+        token
+    );
 }
 
 std::string flang::ReturnObject::toString() const {
@@ -130,33 +144,40 @@ std::string flang::DictionaryObject::getTypeString() const {
     return "dict";
 }
 
-std::shared_ptr<flang::Object> flang::DictionaryObject::callProperty(flang::Interpreter &visitor, const std::shared_ptr<flang::FunctionCallNode> &fn_node) {
+flang::FResult flang::DictionaryObject::callProperty(Interpreter &visitor, const std::shared_ptr<flang::FunctionCallNode> &fn_node) {
     if (fn_node->tok.value == "get") {
         auto res = verifyArgsCount(fn_node->args.size(), 1, tok);
         if (res.has_value()) {
-            FError(RunTimeError,
-                   res.value(),
-                   fn_node->tok.pos
-            ).Throw();
+            return FResult::createError(
+                RunTimeError,
+                res.value(),
+                fn_node->tok
+            );
         }
-        auto first_arg = fn_node->args[0]->accept(visitor);
-        auto hashed = first_arg->hash(tok);
-        auto it = items.find(hashed);
-        if (it == items.end()) {
-            FError(NameError,
-                   fmt::format("key {} not found in dict", first_arg->toString()),
-                   fn_node->tok.pos
-                   ).Throw();
 
+        auto first_arg = fn_node->args[0]->accept(visitor);
+        if (first_arg.isError()) return first_arg;
+
+        auto hashed = first_arg.result->hash(tok);
+        if (hashed.isError())
+            return hashed;
+
+        auto intObject = dynamic_cast<IntObject*>(hashed.result.get()); // TODO: might cause issue?
+
+        auto it = items.find(intObject->value);
+        if (it == items.end()) {
+            return FResult::createResult(std::make_shared<NoneObject>(tok), tok);
         }
-        return std::get<1>(it->second);
+
+        return FResult::createResult(std::get<1>(it->second), tok);
     } else if (fn_node->tok.value == "keys") {
         auto res = verifyArgsCount(fn_node->args.size(), 0, tok);
         if (res.has_value()) {
-            FError(RunTimeError,
-                   res.value(),
-                   fn_node->tok.pos
-            ).Throw();
+            return FResult::createError(
+                RunTimeError,
+                res.value(),
+                fn_node->tok
+            );
         }
 
         auto list = std::make_shared<ListObject>(tok);
@@ -165,14 +186,15 @@ std::shared_ptr<flang::Object> flang::DictionaryObject::callProperty(flang::Inte
             list->items.push_back(std::get<0>(item.second));
         }
 
-        return list;
+        return FResult::createResult(list, tok);
     } else if (fn_node->tok.value == "values") {
         auto res = verifyArgsCount(fn_node->args.size(), 0, tok);
         if (res.has_value()) {
-            FError(RunTimeError,
-                   res.value(),
-                   fn_node->tok.pos
-            ).Throw();
+            return FResult::createError(
+                    RunTimeError,
+                    res.value(),
+                    fn_node->tok
+            );
         }
 
         auto list = std::make_shared<ListObject>(tok);
@@ -181,21 +203,103 @@ std::shared_ptr<flang::Object> flang::DictionaryObject::callProperty(flang::Inte
             list->items.push_back(std::get<1>(item.second));
         }
 
-        return list;
+        return FResult::createResult(list, tok);
     }
 
     return Object::callProperty(visitor, fn_node);
 }
 
-std::shared_ptr<flang::Object> flang::DictionaryObject::getProperty(const std::string &name) {
-    auto hashed = std::hash<std::string>{}(name);
-    auto it = items.find(hashed);
-    if (it == items.end()) {
-        FError(NameError,
-               fmt::format("key {} not found in dict", name),
-               tok.pos
-        ).Throw();
+flang::FResult flang::DictionaryObject::index(std::shared_ptr<ListObject> idx_args) {
+    if (idx_args->items.size() != 1) {
+        return FResult::createError(
+            IndexError,
+            fmt::format("dict index takes 1 argument but {} were given", idx_args->items.size()),
+            tok
+        );
     }
 
-    return std::get<1>(it->second);
+    auto first_arg = idx_args->items[0];
+    auto hashed = first_arg->hash(tok);
+    if (hashed.isError())
+        return hashed;
+
+    auto intObject = dynamic_cast<IntObject*>(hashed.result.get()); // TODO: might cause issue?
+
+    auto it = items.find(intObject->value);
+    if (it == items.end()) {
+        return FResult::createError(
+                NameError,
+                fmt::format("key {} not found in dict", first_arg->toString()),
+                first_arg->tok
+        );
+    }
+
+    return FResult::createResult(std::get<1>(it->second), tok);
+}
+
+flang::FResult
+flang::DictionaryObject::index_assign(std::shared_ptr<Object> &right, std::shared_ptr<ListObject> idx_args) {
+    if (idx_args->items.size() != 1) {
+        return FResult::createError(
+            IndexError,
+            fmt::format("dict index takes 1 argument but {} were given", idx_args->items.size()),
+            tok
+        );
+    }
+    auto first_arg = idx_args->items[0];
+    auto hashed = first_arg->hash(tok);
+    if (hashed.isError())
+        return hashed;
+
+    auto intObject = dynamic_cast<IntObject*>(hashed.result.get()); // TODO: might cause issue?
+    items[intObject->value] = std::make_tuple(first_arg, right);
+    return FResult::createResult(right, tok);
+}
+
+flang::FResult flang::DictionaryObject::getProperty(const std::string &name, const Token &tok) {
+    if (name == "size") {
+        return FResult::createResult(std::make_shared<IntObject>(items.size(), tok), tok);
+    }
+    return Object::getProperty(name, tok);
+}
+
+std::string flang::FResult::toString() const {
+    const auto &result_str = result != nullptr ? result->toString(): "none";
+    const auto &err_str = err != nullptr ? err->toString(): "none";
+    return fmt::format("Result(is_error: {}, result: {}, error: {})", is_error,  result_str, err_str);
+}
+
+flang::FResult
+flang::FResult::createError(ErrorType err_type, std::string_view msg, const Token& tok) {
+    auto error = std::make_shared<ErrorObject>(err_type, msg, tok.pos, tok);
+    return FResult(error);
+}
+
+flang::FResult
+flang::FResult::createResult(const std::shared_ptr<Object>& _result, const Token &tok) {
+    return FResult(_result);
+}
+
+bool flang::FResult::isError() const {
+    return is_error;
+}
+
+std::string flang::BreakObject::toString() const {
+    return fmt::format("Break({})", tokToString(tok.tok));
+}
+
+std::string flang::BreakObject::getTypeString() const {
+    return "break";
+}
+
+bool flang::BreakObject::isBreak() const {
+    return true;
+}
+
+std::string flang::RangeObject::toString() const {
+    return fmt::format("Rng({}:{})",  start, end);
+}
+
+std::string flang::RangeObject::getTypeString() const {
+    return "range";
 }

@@ -1,9 +1,9 @@
 <h1 style="text-align: center">Language Roadmap</h1>
 
 
-## Things To Add (language features)
-- list support
-- ~~indexing support (using functions for now)~~
+### <p style="text-align: center">Things To Add (language features)</p>
+- ~~list support~~
+- ~~indexing support~~
 - ~~add "and" & "or" support~~
 - ~~add commenting~~
 - ~~Complete member access operators functionality (partial complete)~~
@@ -11,19 +11,27 @@
 - ~~function recursive calls~~
 - ~~add hashing for objects~~
 - ~~add dictionary support~~
-- allow calling functions in-line expression
-- add closures
+- ~~allow calling functions in-line expression~~
+- ~~add anonymous functions~~
 - make builtin type's functions into c++ static functions (WIP)
 - unary operations (WIP)
 - ~~while loops~~
+- add breaking inside of loops
 - struct functions
 - struct defining functionality
 - struct access functionality
+- Make every object return an error object instead of exiting the program
 - ErrorObject that tracks and prints error's
+- Present each file as a module
+- Separate the global context
 - Module System (importing)
+- FFI?
+
 
 
 ### Things To Add (C++ side)
-- Move all builtin-functions/variables into separate file and functions to load it (WIP)
+- All object methods return a result object
+- ~~Move all builtin-functions/variables into separate file and functions to load it~~
 - Standard library (io, math, simple networking)
 - More streamlined process of adding functions
+- Add constructors for conversion from C++ primitives to flang primitive
