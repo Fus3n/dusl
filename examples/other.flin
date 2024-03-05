@@ -1,8 +1,34 @@
+struct Bank {
+    data = {}
 
+    fn addUser(self, name, money=0) {
+        self.data[name] = money
+    }
 
+    fn getMoney(self, name) {
+#        exists =
+        if (not self.data.exists(name)) {
+            error("User Doesn't exists")
+        }
+        bank.data[name]
+    }
 
-value = 0
-if not value {
-    println("negated")
+    fn addMoney(self, name, amount) {
+        bank[name] = amount
+    }
+
+    fn showUsers(self) {
+        println("----- Bank of SusNet -----")
+        for key from self.data.keys() {
+            println(key, "has", self.data[key].toStr() + "$")
+        }
+    }
 }
-status = system("clear")
+
+bank = Bank()
+#bank.addUser("Fusen", money=300)
+#bank.addUser("Anubis")
+m = bank.getMoney("Fusen")
+bank.showUsers()
+
+

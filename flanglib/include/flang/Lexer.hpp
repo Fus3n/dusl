@@ -1,10 +1,9 @@
 #pragma once
 
-#include <iostream>
 #include <vector>
+#include "flang/Serializable.h"
 
 #include "Position.hpp"
-
 
 namespace flang {
 
@@ -33,6 +32,7 @@ namespace flang {
 		Ident,
 		Keyword,
         Dot, // .
+        DoubleDot, // ..
         Comma, // ,
         SemiColon, // ;
         Colon, // ;
@@ -48,20 +48,20 @@ namespace flang {
 
 	std::string tokToString(TokenType tok);
 
-	struct Token {
+	struct Token: public Serializable {
         std::string value;
 		TokenType tok;
         Position pos;
 
-        Token(std::string val, TokenType _tok, Position _pos): value(std::move(val)), tok(_tok), pos(_pos) {}
+        Token(std::string val, TokenType _tok, const Position& _pos): value(std::move(val)), tok(_tok), pos(_pos) {}
         explicit Token() : tok(TokenType::Eof) {}
 
         [[nodiscard]] bool cmp(TokenType t) const;
         [[nodiscard]] bool cmp(TokenType t, const std::string_view&  val) const;
-		std::string ToString();
-    };
+		std::string toString();
+		nlohmann::ordered_json toJson() const override;
+	};
 
-	
 	class Lexer {
 	public:
 		static const char END_OF_FILE = '\0';

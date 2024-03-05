@@ -50,6 +50,10 @@ std::string flang::errTypeToString(ErrorType err_type) {
             return "ZeroDivisionError";
         case IndexError:
             return "IndexError";
+        case ImportError:
+            return "ImportError";
+        case TypeError:
+            return "TypeError";
 		default:
 			return "UnknownError";
 	}

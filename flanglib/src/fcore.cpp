@@ -4,12 +4,13 @@
 #include <fstream>
 #include <memory>
 #include <utility>
+#include <filesystem>
 
 
 void flang::createFunction(flang::Interpreter &visitor, std::string name, flang::BuiltinFunctionObject::FunctionPointer func) {
     flang::Token tok;
     tok.value = std::move(name);
-    visitor.ctx.currenSymbol().setValue(
+    visitor.ctx.currentSymbol().setValue(
             tok.value, std::make_shared<flang::BuiltinFunctionObject>(tok, func)
     );
 }
@@ -28,20 +29,12 @@ std::optional<std::string> flang::verifyArgsCount(size_t current_count, size_t e
 bool flang::runSingleFile(const std::string& file_name, flang::Interpreter &visitor) {
     flang::Lexer lexer;
     flang::Parser parser;
+    std::string code;
+
+    auto path = std::filesystem::path(file_name);
 
     // read the file
-    std::string code;
-    std::ifstream file(file_name);
-    if (!file.is_open()) {
-        fmt::print("Failed to open file: {}\n", file_name);
-        return false;
-    }
-    while (!file.eof()) {
-        std::string line;
-        std::getline(file, line);
-        code += line + "\n";
-    }
-    file.close();
+    code = flang::read_file(file_name);
 
     // trim code
     flang::str_trim(code);
@@ -53,11 +46,13 @@ bool flang::runSingleFile(const std::string& file_name, flang::Interpreter &visi
     auto tokens = lexer.tokenize(code, file_name);
     auto ast = parser.parse(code, file_name, tokens);
 
-//    for (auto& stmt : ast.statements) {
-//        // test
-//        fmt::println("{}", stmt->toString());
-//    }
-//    return 1;
+    const auto jsn = ast.toJson().dump(2);
+//    fmt::println("{}", jsn);
+    flang::write_file("ast.json", jsn);
+//    return 0;
+
+    auto file_context_name = path.stem().string();
+    visitor.ctx.setBaseCtxName(file_context_name);
     auto return_val = visitor.visit(ast);
 
     if (return_val.isError()){
@@ -79,26 +74,88 @@ bool flang::runSingleFile(const std::string& file_name, flang::Interpreter &visi
 }
 
 void flang::addGlobalVariable(flang::Interpreter &visitor, const std::string& name, flang::IntObject *value) {
-    visitor.ctx.currenSymbol().setValue(name, std::make_shared<flang::IntObject>(*value));
+    visitor.ctx.currentSymbol().setValue(name, std::make_shared<flang::IntObject>(*value));
 }
 
 void flang::addGlobalVariable(flang::Interpreter &visitor, const std::string &name, flang::StringObject *value) {
-    visitor.ctx.currenSymbol().setValue(name, std::make_shared<flang::StringObject>(*value));
+    visitor.ctx.currentSymbol().setValue(name, std::make_shared<flang::StringObject>(*value));
 }
 void flang::addGlobalVariable(flang::Interpreter &visitor, const std::string &name, flang::BooleanObject *value) {
-    visitor.ctx.currenSymbol().setValue(name, std::make_shared<flang::BooleanObject>(*value));
+    visitor.ctx.currentSymbol().setValue(name, std::make_shared<flang::BooleanObject>(*value));
 }
 
 [[maybe_unused]] flang::IntObject flang::createInt(int64_t value) {
     return flang::IntObject(value, flang::Token());
 }
+flang::IntObject flang::createInt(int64_t value, flang::Token tok) {
+    return flang::IntObject(value, std::move(tok));
+}
 
 flang::StringObject flang::createString(std::string value) {
     return flang::StringObject(std::move(value), flang::Token());
+}
+flang::StringObject flang::createString(std::string value, flang::Token tok) {
+    return flang::StringObject(std::move(value), std::move(tok));
 }
 
 flang::BooleanObject flang::createBool(bool value) {
     return {value, flang::Token()};
 }
+
+flang::BooleanObject flang::createBool(bool value, flang::Token tok) {
+    return {value, std::move(tok)};
+}
+
+[[noreturn]] void flang::runRepl(flang::Interpreter &visitor) {
+    fmt::println(
+            "Flang 0.0.1 ({}, {}) on {}",
+            __DATE__, __TIME__,
+            flang::getOsName()
+    );
+
+    flang::Lexer lexer;
+    flang::Parser parser;
+    std::string code;
+
+    // TODO: temporary, will be changed later
+    while (true) {
+        std::string line;
+        fmt::print(">>> ");
+        std::getline(std::cin, line);
+        code += line + "\n";
+        if (line.empty()) {
+            continue;
+        }
+
+        // RUN
+        const std::string file_name = "<REPL>";
+        auto tokens = lexer.tokenize(code, file_name);
+        auto ast = parser.parse(code, file_name, tokens);
+
+        try {
+            auto return_val = visitor.visit(ast);
+
+            if (return_val.isError()) {
+                fmt::println("{}", return_val.err->toString());
+                continue;
+            }
+
+            if (return_val.result) {
+                if (return_val.result->getTypeString() == "none" || return_val.result->isBreak()) {
+                    continue;
+                }
+                fmt::println("{}", return_val.result->toString());
+            }
+        } catch (std::exception &e) {
+            std::cout << e.what() << std::endl;
+        }
+    }
+
+    // pause console
+
+}
+
+
+
 
 

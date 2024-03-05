@@ -6,13 +6,22 @@ void flang::Context::setName(std::string& context_name) {
     this->name = context_name;
 }
 
-std::string flang::Context::getName() {
+std::string flang::Context::getName() const {
     return name;
 }
 
+std::string flang::Context::getBaseCtxName() const {
+    return base_ctx_name;
+}
+
+void flang::Context::setBaseCtxName(std::string &context_name) {
+    this->base_ctx_name = context_name;
+}
+
+
 void flang::Context::enterScope() {
     if (sym_table_stack.size() > MAX_STACK_SIZE) {
-        throw std::runtime_error("Maximum symbol table stack size exceeded");
+        throw std::runtime_error("Maximum stack size exceeded");
     }
     // Create a new symbol table that inherits from the parent's symbol table
     if (sym_table_stack.empty()) {
@@ -35,6 +44,13 @@ void flang::Context::exitScope() {
     }
 }
 
-flang::SymbolTable &flang::Context::currenSymbol() {
+flang::SymbolTable &flang::Context::currentSymbol() {
     return sym_table_stack.top();
 }
+
+void flang::Context::setCurrentSymbol(flang::SymbolTable& sym_table) {
+    sym_table_stack.top() = sym_table;
+}
+
+
+

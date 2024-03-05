@@ -41,6 +41,8 @@ std::string flang::tokToString(const TokenType tok) {
             return "+";
         case TokenType::Dot:
             return ".";
+        case TokenType::DoubleDot:
+            return "..";
         case TokenType::Minus:
             return "-";
         case TokenType::Multiply:
@@ -72,10 +74,19 @@ std::string flang::tokToString(const TokenType tok) {
 
 
 // Token
-std::string flang::Token::ToString()
+std::string flang::Token::toString()
 {
 	return fmt::format("[Token(val='{}', type={}, pos={})]", this->value, tokToString(this->tok), pos.toString());
 }
+
+nlohmann::ordered_json flang::Token::toJson() const {
+    return {
+        {"value",value},
+        {"token_type", tokToString(tok)},
+        {"pos", pos.toJson()}
+    };
+}
+
 bool flang::Token::cmp(flang::TokenType t) const {
     return this->tok == t;
 }
@@ -141,8 +152,13 @@ std::vector<flang::Token> flang::Lexer::tokenize(std::string_view code, std::str
                 nextTok();
                 break;
             case '.':
-                m_tokens.emplace_back(std::string(1, m_tok), TokenType::Dot, m_pos);
                 nextTok();
+                if (m_tok == '.') {
+                    nextTok();
+                    m_tokens.emplace_back("..", TokenType::DoubleDot, m_pos);
+                } else {
+                    m_tokens.emplace_back(".", TokenType::Dot, m_pos);
+                }
                 break;
             case ';':
                 m_tokens.emplace_back(std::string(1, m_tok), TokenType::SemiColon, m_pos);
@@ -263,20 +279,24 @@ void flang::Lexer::parseAndPushString() {
 void flang::Lexer::parseAndPushNumber() {
 	std::string number;
     auto pos = m_pos.copy();
-	bool isFloat = false;
+	bool dot_found = false;
 
 	while (!isEof() && isdigit(m_tok) || m_tok == '.' || m_tok == '_') {
 		if (m_tok == '_')
 			continue;
 
 		if (m_tok == '.') {
-			if (isFloat) {
-				FError(SyntaxError, fmt::format("invalid syntax '{}'", m_tok), m_pos)
-					.Throw();
+			if (dot_found) {
+                // push accumulated numbers
+                m_tokens.emplace_back(number, INT, pos);
+                // push double dot
+                nextTok();
+                m_tokens.emplace_back("..", DoubleDot, m_pos);
+                return;
 			}
 			number += m_tok;
 			nextTok();
-            isFloat = true;
+            dot_found = true;
 			continue;
 		}
 
@@ -284,7 +304,7 @@ void flang::Lexer::parseAndPushNumber() {
 		nextTok();
 	}
 
-	if (isFloat)
+	if (dot_found)
 		m_tokens.emplace_back(number, FLOAT, pos);
 	else
 		m_tokens.emplace_back(number, INT, pos);

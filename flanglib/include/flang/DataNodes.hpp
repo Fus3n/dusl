@@ -6,15 +6,15 @@
 #include <optional>
 #include <unordered_map>
 
+#include "Serializable.h"
 #include "Lexer.hpp"
-
 
 namespace flang {
     class Interpreter;
     class Object;
     class FResult;
 
-    class DataNode {
+    class DataNode: public Serializable {
     public:
         Token tok;
 
@@ -23,6 +23,7 @@ namespace flang {
         [[nodiscard]] virtual std::string toString() const;
 
         virtual flang::FResult accept(Interpreter& visitor) = 0;
+        nlohmann::ordered_json toJson() const override;
     };
 
     class ProgramNode: public DataNode {
@@ -32,6 +33,7 @@ namespace flang {
         explicit ProgramNode(Token tok): DataNode(std::move(tok)) {}
 
         flang::FResult accept(Interpreter& visitor) override;
+        nlohmann::ordered_json toJson() const override;
     };
 
     class BlockNode: public DataNode {
@@ -43,6 +45,7 @@ namespace flang {
 
         [[nodiscard]] std::string toString() const override;
         flang::FResult accept(Interpreter& visitor) override;
+        nlohmann::ordered_json toJson() const override;
     };
 
     class StringNode: public DataNode {
@@ -52,6 +55,7 @@ namespace flang {
         StringNode(std::string val, Token tok): DataNode(std::move(tok)), value(std::move(val)) {}
         [[nodiscard]] std::string toString() const override;
         flang::FResult accept(Interpreter& visitor) override;
+        nlohmann::ordered_json toJson() const override;
     };
 
     class IntNode: public DataNode {
@@ -60,6 +64,7 @@ namespace flang {
         IntNode(int64_t val, Token tok): DataNode(std::move(tok)), value(val) {}
         [[nodiscard]] std::string toString() const override;
         flang::FResult accept(Interpreter& visitor) override;
+        nlohmann::ordered_json toJson() const override;
     };
 
     class FloatNode: public DataNode {
@@ -68,6 +73,7 @@ namespace flang {
         FloatNode(long double val, Token tok): DataNode(std::move(tok)), value(val) {}
         [[nodiscard]] std::string toString() const override;
         flang::FResult accept(Interpreter& visitor) override;
+        nlohmann::ordered_json toJson() const override;
     };
 
     class ListNode: public DataNode {
@@ -76,6 +82,7 @@ namespace flang {
         ListNode(std::vector<std::shared_ptr<flang::DataNode>> _items, Token tok): DataNode(std::move(tok)), items(std::move(_items)) {}
         [[nodiscard]] std::string toString() const override;
         flang::FResult accept(Interpreter &visitor) override;
+        nlohmann::ordered_json toJson() const override;
     };
 
     class DictionaryNode: public DataNode {
@@ -87,15 +94,17 @@ namespace flang {
 
         [[nodiscard]] std::string toString() const override;
         flang::FResult accept(Interpreter &visitor) override;
+        nlohmann::ordered_json toJson() const override;
     };
 
     class VarAccessNode: public DataNode {
     public:
         std::string value;
-        explicit VarAccessNode(Token _tok): DataNode(std::move(_tok)) {}
+        explicit VarAccessNode(Token _tok): DataNode(std::move(_tok)), value(_tok.value) {}
         explicit VarAccessNode(std::string _value, Token _tok): DataNode(std::move(_tok)), value(std::move(_value)) {}
         [[nodiscard]] std::string toString() const override;
         flang::FResult accept(Interpreter& visitor) override;
+        nlohmann::ordered_json toJson() const override;
     };
 
     class AssignmentNode: public DataNode {
@@ -106,6 +115,20 @@ namespace flang {
 
         [[nodiscard]] std::string toString() const override;
         flang::FResult accept(Interpreter& visitor) override;
+        nlohmann::ordered_json toJson() const override;
+    };
+
+    class ArgumentNode: public DataNode {
+    public:
+        std::vector<std::shared_ptr<flang::DataNode>> args;
+        std::unordered_map<std::string, std::shared_ptr<flang::DataNode>> default_args;
+
+        ArgumentNode(std::vector<std::shared_ptr<flang::DataNode>> _args, std::unordered_map<std::string, std::shared_ptr<flang::DataNode>> _default_args, Token tok)
+                : DataNode(std::move(tok)), args(std::move(_args)), default_args(std::move(_default_args)) {}
+
+        [[nodiscard]] std::string toString() const override;
+        flang::FResult accept(Interpreter& visitor) override;
+        nlohmann::ordered_json toJson() const override;
     };
 
     class FunctionDefNode: public DataNode {
@@ -113,45 +136,46 @@ namespace flang {
         std::string func_name;
         bool is_anon = false;
 
-        std::vector<std::shared_ptr<flang::DataNode>> args;
+        ArgumentNode args_node;
         std::shared_ptr<BlockNode> block;
 
         FunctionDefNode(
-                std::string _func_name,
-                std::vector<std::shared_ptr<flang::DataNode>> _args,
-                BlockNode* _block,
-                Token tok,
-                bool _is_anon=false
-        ):
-            DataNode(std::move(tok)), args(std::move(_args)), block(_block), func_name(std::move(_func_name)), is_anon(_is_anon) {}
+            std::string _func_name,
+            ArgumentNode _args_node,
+            BlockNode* _block,
+            Token tok,
+            bool _is_anon=false
+        ): DataNode(std::move(tok)), args_node(std::move(_args_node)), block(_block), func_name(std::move(_func_name)), is_anon(_is_anon) {}
 
         [[nodiscard]] std::string toString() const override;
         flang::FResult accept(Interpreter& visitor) override;
+        nlohmann::ordered_json toJson() const override;
     };
 
     class FunctionCallNode: public DataNode {
     public:
-        std::vector<std::shared_ptr<flang::DataNode>> args;
+        flang::ArgumentNode args_node;
 
-        FunctionCallNode(Token tok, std::vector<std::shared_ptr<flang::DataNode>> _args):
-        DataNode(std::move(tok)), args(std::move(_args)) {}
+        FunctionCallNode(Token tok, flang::ArgumentNode _args_node):
+        DataNode(std::move(tok)), args_node(std::move(_args_node)) {}
 
         [[nodiscard]] std::string toString() const override;
         flang::FResult accept(Interpreter& visitor) override;
+        nlohmann::ordered_json toJson() const override;
     };
 
     class FunctionCallNodeEXPR: public DataNode {
     public:
-        std::unique_ptr<flang::DataNode> functionExpr;
-        std::vector<std::shared_ptr<flang::DataNode>> args;
+        std::unique_ptr<flang::DataNode> function_expr;
+        flang::ArgumentNode args_node;
 
-        FunctionCallNodeEXPR(DataNode* _functionExpr, std::vector<std::shared_ptr<flang::DataNode>> _args, Token tok):
-                DataNode(std::move(tok)), args(std::move(_args)), functionExpr(_functionExpr) {}
+        FunctionCallNodeEXPR(DataNode* _functionExpr, ArgumentNode _args_node, Token tok):
+                DataNode(std::move(tok)), args_node(std::move(_args_node)), function_expr(_functionExpr) {}
 
         [[nodiscard]] std::string toString() const override;
         flang::FResult accept(Interpreter &visitor) override;
+        nlohmann::ordered_json toJson() const override;
     };
-
 
     class StructDefNode: public DataNode {
     public:
@@ -161,6 +185,7 @@ namespace flang {
         StructDefNode(std::vector<std::shared_ptr<DataNode>> _values, Token tok): DataNode(std::move(tok)), values(std::move(_values)) {}
         [[nodiscard]] std::string toString() const override;
         flang::FResult accept(Interpreter& visitor) override;
+        nlohmann::ordered_json toJson() const override;
     };
 
     class MemberAccessNode: public DataNode {
@@ -173,6 +198,7 @@ namespace flang {
 
         [[nodiscard]] std::string toString() const override;
         flang::FResult accept(Interpreter &visitor) override;
+        nlohmann::ordered_json toJson() const override;
     };
 
     class ConditionNode: public DataNode {
@@ -189,6 +215,7 @@ namespace flang {
 
         [[nodiscard]] std::string toString() const override;
         flang::FResult accept(Interpreter &visitor) override;
+        nlohmann::ordered_json toJson() const override;
     };
 
     class IFNode: public DataNode {
@@ -201,6 +228,7 @@ namespace flang {
 
         [[nodiscard]] std::string toString() const override;
         flang::FResult accept(Interpreter &visitor) override;
+        nlohmann::ordered_json toJson() const override;
     };
 
     class LogicalOpNode: public DataNode {
@@ -221,6 +249,7 @@ namespace flang {
         flang::FResult accept(Interpreter &visitor) override;
 
         static std::string OpToString(Operations op);
+        nlohmann::ordered_json toJson() const override;
 
     };
 
@@ -231,8 +260,8 @@ namespace flang {
         ReturnNode(DataNode* _return_node, Token tok) : DataNode(std::move(tok)), return_node(_return_node) {}
         [[nodiscard]] std::string toString() const override;
         flang::FResult accept(Interpreter &visitor) override;
+        nlohmann::ordered_json toJson() const override;
     };
-
 
     class WhileLoopNode: public DataNode {
     public:
@@ -241,6 +270,7 @@ namespace flang {
         WhileLoopNode(ConditionNode _cond_node, Token tok): DataNode(std::move(tok)), cond_node(std::move(_cond_node)) {}
         [[nodiscard]] std::string toString() const override;
         flang::FResult accept(Interpreter &visitor) override;
+        nlohmann::ordered_json toJson() const override;
     };
 
     class UnaryOpNode : public DataNode {
@@ -260,6 +290,7 @@ namespace flang {
         flang::FResult accept(Interpreter &visitor) override;
         static std::string OpToString(Operations op);
         static Operations TokToOperation(const Token& token);
+        nlohmann::ordered_json toJson() const override;
     };
 
     class IndexNode: public DataNode {
@@ -270,6 +301,7 @@ namespace flang {
         IndexNode(DataNode* _expr, ListNode* _index_args, Token tok): DataNode(std::move(tok)), expr(_expr), index_args(_index_args) {}
         flang::FResult accept(Interpreter &visitor) override;
         [[nodiscard]] std::string toString() const override;
+        nlohmann::ordered_json toJson() const override;
     };
 
     class IndexAssignNode: public DataNode {
@@ -281,6 +313,7 @@ namespace flang {
         IndexAssignNode(DataNode* _left_node, DataNode* _right_node, ListNode* _index_args, Token tok): DataNode(std::move(tok)), left_node(_left_node), right_node(_right_node), index_args(_index_args) {}
         flang::FResult accept(Interpreter &visitor) override;
         [[nodiscard]] std::string toString() const override;
+        nlohmann::ordered_json toJson() const override;
     };
 
     class NoneNode: public DataNode {
@@ -289,14 +322,15 @@ namespace flang {
         explicit NoneNode(Token tok): DataNode(std::move(tok)){}
         [[nodiscard]] std::string toString() const override;
         flang::FResult accept(Interpreter& visitor) override;
+        nlohmann::ordered_json toJson() const override;
     };
 
     class BreakNode: public DataNode {
     public:
-
         explicit BreakNode(Token tok): DataNode(std::move(tok)){}
         [[nodiscard]] std::string toString() const override;
         flang::FResult accept(Interpreter& visitor) override;
+        nlohmann::ordered_json toJson() const override;
     };
 
     class RangeNode: public DataNode {
@@ -308,6 +342,7 @@ namespace flang {
 
         [[nodiscard]] std::string toString() const override;
         flang::FResult accept(Interpreter& visitor) override;
+        nlohmann::ordered_json toJson() const override;
     };
 
     class ForLoopNode: public DataNode {
@@ -321,7 +356,19 @@ namespace flang {
 
         flang::FResult accept(Interpreter &visitor) override;
         [[nodiscard]] std::string toString() const override;
+        nlohmann::ordered_json toJson() const override;
+    };
 
+    class ImportNode: public DataNode {
+    public:
+        std::string module_path;
+        std::vector<std::string> symbols;
+        bool import_all = false;
+
+        ImportNode(std::string _module_path, std::vector<std::string> _symbols, bool _import_all, Token tok): DataNode(std::move(tok)), module_path(std::move(_module_path)), symbols(std::move(_symbols)), import_all(_import_all) {}
+        flang::FResult accept(Interpreter &visitor) override;
+        [[nodiscard]] std::string toString() const override;
+        nlohmann::ordered_json toJson() const override;
     };
 
     class BinOpNode : public DataNode {
@@ -351,6 +398,7 @@ namespace flang {
         static std::string OpToString(Operations op);
         static Operations TokToOperation(const Token& token);
         flang::FResult accept(Interpreter& visitor) override;
+        nlohmann::ordered_json toJson() const override;
     };
 
 }

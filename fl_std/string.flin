@@ -1,0 +1,14 @@
+
+\ a function to join a list of string with the given delimiter \
+fn joinStr(str_list, delim="") {
+    result = ""
+
+    for element from str_list {
+        result = result + element + delim
+    }
+
+    # remove trailing delimiter
+    result = result[0..(result.size-delim.size-1)]
+    return result
+}
+

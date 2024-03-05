@@ -12,7 +12,9 @@ namespace flang {
         NameError,
         ZeroDivisionError,
         UnimplementedError,
-        IndexError
+        IndexError,
+        TypeError,
+        ImportError
 	};
 	
 	std::string errTypeToString(ErrorType err_type);

@@ -6,15 +6,16 @@ std::string flang::ErrorObject::toString() const {
 }
 
 std::string flang::ErrorObject::generateErrString() const {
+    fmt::println(" Tracback:\nFile {}", pos.file_name);
     auto msg = fmt::format(
-            "{}: {} \n\tat {}:{}",
+            " {}: {} \n\tat {}:{}",
             errTypeToString(err_type),
             err_msg,
             pos.line + 1,
             pos.row
     );
 
-    auto lines = split_lines(pos.code);
+    const auto lines = split_lines(pos.code);
     auto line = lines[pos.line];
     msg += fmt::format("\n{}\n", line);
     msg += fmt::format("{: >{}}", "", pos.row);

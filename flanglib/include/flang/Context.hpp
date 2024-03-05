@@ -12,16 +12,20 @@ namespace flang {
 
         Context() = default;
 
-        std::string getName();
+        std::string getName() const;
         void setName(std::string& context_name);
+
+        std::string getBaseCtxName() const;
+        void setBaseCtxName(std::string& context_name);
 
         void enterScope();
         void exitScope();
-        SymbolTable& currenSymbol();  // Added method
+        SymbolTable& currentSymbol();  // Added method
+        void setCurrentSymbol(flang::SymbolTable& sym_table);
 
     private:
         std::string name = "_default";
-
+        std::string base_ctx_name = "_module";
     };
 }
 

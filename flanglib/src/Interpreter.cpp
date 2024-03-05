@@ -29,4 +29,3 @@ flang::FResult flang::Interpreter::visit(BlockNode &node) {
 flang::FResult flang::Interpreter::visit(const std::shared_ptr<DataNode>& node) {
     return node->accept(*this);
 }
-

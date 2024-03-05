@@ -1,0 +1,22 @@
+fn add(a, b) {
+    return a + b
+}
+
+fn sub(a, b) {
+    return a - b
+}
+
+fn mul(a, b) {
+    return a - b
+}
+
+fn div(a, b) {
+    return a / b
+}
+
+fn round(a) {
+    if type(a) == "float" {
+        return a.toInt()
+    }
+
+}

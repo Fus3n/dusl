@@ -132,7 +132,7 @@ flang::Object::not_equal_to(const std::shared_ptr<Object> &other, const Token &t
 }
 
 flang::FResult
-flang::Object::call(Interpreter &visitor, std::vector<std::shared_ptr<Object>> &arguments, const Token &token) {
+flang::Object::call(Interpreter &visitor, ArgumentObject &args_node, const Token &token) {
     return FResult::createError(
             RunTimeError,
             fmt::format("'{}' is not callable", tokToString(this->tok.tok)),

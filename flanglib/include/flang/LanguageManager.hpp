@@ -22,6 +22,7 @@ namespace flang {
         ReturnKey,
         FromKey,
         InKey,
+        ImportKey
     };
 
     class LanguageManager {

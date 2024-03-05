@@ -27,10 +27,6 @@ file(GLOB INCLUDES include/*.h)
 add_library(flanglib STATIC
         ${SOURCES}
         ${INCLUDES}
-        src/fstandard.cpp
-        src/ErrorObject.cpp
-        include/flang/utils/common.h
-        src/common.cpp
 )
 include(CheckIPOSupported)
 check_ipo_supported(RESULT result)

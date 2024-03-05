@@ -3,7 +3,7 @@
 #include <utility>
 
 std::shared_ptr<flang::Object> flang::SymbolTable::getValue(const std::string &key) {
-   return variables[key];
+   return variables[key]; // TODO: add error checking
 }
 
 void flang::SymbolTable::setValue(const std::string &key, std::shared_ptr<Object> value) {

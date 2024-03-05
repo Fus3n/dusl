@@ -27,7 +27,5 @@ if(result)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
-
-
 target_link_libraries(flang PUBLIC flanglib)
 target_link_libraries(flang PUBLIC fmt)

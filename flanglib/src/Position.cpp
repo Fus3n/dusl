@@ -27,3 +27,11 @@ void flang::Position::setCodeAndFile(std::string_view _code, std::string_view _f
     file_name = _file_name;
 }
 
+nlohmann::ordered_json flang::Position::toJson() const {
+	return {
+		{"line", line},
+		{"row", row},
+		{"code", "<code>"},
+		{"file_name", file_name}
+	};
+}

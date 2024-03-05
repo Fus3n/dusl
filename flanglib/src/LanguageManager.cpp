@@ -16,6 +16,7 @@ std::unordered_map<flang::KeywordType, std::string_view> flang::LanguageManager:
         {ReturnKey, "return"},
         {FromKey, "from"},
         {InKey, "in"},
+        {ImportKey, "import"}
 };
 
 void flang::LanguageManager::reAssignKeyword(flang::KeywordType type, std::string_view keyword) {

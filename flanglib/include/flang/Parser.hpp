@@ -34,6 +34,7 @@ namespace flang {
         DataNode * whileStatement();
         DataNode * forStatement();
         DataNode * returnStatement();
+        DataNode * importStatement();
 
         BlockNode * scopeBlock(std::optional<Token> tok = std::nullopt);
         flang::ConditionNode capture_condition(Token tok);
@@ -41,6 +42,7 @@ namespace flang {
         // helpers
         DataNode * parseAssignment();
         DataNode * parseStructBody();
+        flang::ArgumentNode parseFuncArgument(bool is_define=false);
         ListNode * parseList();
         DataNode * parseDict();
 

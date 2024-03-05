@@ -4,6 +4,7 @@
 #include "utils/fcore.h"
 #include <fmt/core.h>
 #include <sstream>
+#include <algorithm>
 
 std::string flang::NoneObject::toString() const {
     return "none";
@@ -31,10 +32,10 @@ std::string flang::BuiltinFunctionObject::toString() const {
 }
 
 flang::FResult
-flang::BuiltinFunctionObject::call(Interpreter &visitor, std::vector<std::shared_ptr<Object>> &arguments,
+flang::BuiltinFunctionObject::call(Interpreter &visitor, ArgumentObject &args_node,
                                    const Token &token) {
 
-    return body_func(visitor, arguments, token);
+    return body_func(visitor, args_node, token);
 }
 
 flang::FResult flang::BuiltinFunctionObject::hash(const flang::Token &token) const {
@@ -51,32 +52,57 @@ std::string flang::FunctionObject::toString() const {
 }
 
 flang::FResult
-flang::FunctionObject::call(Interpreter &visitor, std::vector<std::shared_ptr<Object>> &arguments,
-                            const Token &token) {
+flang::FunctionObject::call(Interpreter &visitor, ArgumentObject &arguments, const Token &token) {
+    auto arg_total = args.size();
+    auto given_total = arguments.args.size() + arguments.default_args.size();
+    auto max_expected_args = std::max(arg_total, given_total);
 
-    if (args.size() < arguments.size() || args.size() > arguments.size()) {
-        return FResult::createError(NameError, fmt::format("{} takes {} arguments but {} were given", tok.value, args.size(), arguments.size()), tok);
+
+    if (given_total > max_expected_args) {
+        return FResult::createError(NameError, fmt::format("{} takes at most {} arguments but {} were given", func_name, max_expected_args, given_total), tok);
+    } else if (given_total < arg_total) {
+        return FResult::createError(NameError, fmt::format("{} takes at least {} arguments but {} were given", func_name, arg_total, given_total), tok);
+    } else if (given_total > arg_total && arguments.default_args.empty()) {
+        return FResult::createError(NameError, fmt::format("{} takes at most {} arguments but {} were given", func_name, arg_total, given_total), tok);
     }
 
     // preserve global symbols
     auto current_ctx_name = visitor.ctx.getName();
-    auto new_name = current_ctx_name + "." + tok.value;
+    auto new_name = current_ctx_name + "." + func_name;
     visitor.ctx.setName(new_name);
     visitor.ctx.enterScope();
 
-    for (int i = 0; i < args.size(); i++) {
-        // funcDef Node's all argument are just VarAccess node,
-        // so we just get the tok.value which should be the name of the variable
-        // and set the value of the variable to the value of the argument
-        visitor.ctx.currenSymbol().setValue(args[i]->tok.value, arguments[i]);
+    for (int i = 0; i < arguments.args.size(); i++) {
+        visitor.ctx.currentSymbol().setValue(args[i], arguments.args[i]);
+
+        if (arguments.default_args.find(args[0]) != arguments.default_args.end()) {
+            visitor.ctx.currentSymbol().setValue(args[0], arguments.default_args[args[0]]);
+        }
+    }
+
+    for (auto& [name, value]: default_args) {
+        // prioritize values from arguments as it's given by user
+        if (arguments.default_args.find(name) != arguments.default_args.end()) {
+            // the value for this name is provided
+            visitor.ctx.currentSymbol().setValue(name, arguments.default_args[name]);
+        } else {
+            // the value is not provided, use default
+            visitor.ctx.currentSymbol().setValue(name, value);
+        }
+    }
+
+    for (auto& name: args) {
+        if (arguments.default_args.find(name) != arguments.default_args.end()) {
+            visitor.ctx.currentSymbol().setValue(name, arguments.default_args[name]);
+        }
     }
 
     auto block_res = block->accept(visitor);
-    if (block_res.isError())
-        return block_res; // TODO: maybe exit scope before returning?
-
     visitor.ctx.exitScope();
     visitor.ctx.setName(current_ctx_name);
+
+    if (block_res.isError())
+        return block_res;
 
     if (block_res.result->isReturn()) {
         // unwrap the return wrapper
@@ -127,142 +153,6 @@ bool flang::ReturnObject::isReturn() const {
     return true;
 }
 
-std::string flang::DictionaryObject::toString() const {
-    std::stringstream ss;
-    ss << "{";
-    for (auto& item: items) {
-        ss << std::get<0>(item.second)->toString();
-        ss << ": ";
-        ss << std::get<1>(item.second)->toString();
-        ss << ", ";
-    }
-    ss << "}";
-    return ss.str();
-}
-
-std::string flang::DictionaryObject::getTypeString() const {
-    return "dict";
-}
-
-flang::FResult flang::DictionaryObject::callProperty(Interpreter &visitor, const std::shared_ptr<flang::FunctionCallNode> &fn_node) {
-    if (fn_node->tok.value == "get") {
-        auto res = verifyArgsCount(fn_node->args.size(), 1, tok);
-        if (res.has_value()) {
-            return FResult::createError(
-                RunTimeError,
-                res.value(),
-                fn_node->tok
-            );
-        }
-
-        auto first_arg = fn_node->args[0]->accept(visitor);
-        if (first_arg.isError()) return first_arg;
-
-        auto hashed = first_arg.result->hash(tok);
-        if (hashed.isError())
-            return hashed;
-
-        auto intObject = dynamic_cast<IntObject*>(hashed.result.get()); // TODO: might cause issue?
-
-        auto it = items.find(intObject->value);
-        if (it == items.end()) {
-            return FResult::createResult(std::make_shared<NoneObject>(tok), tok);
-        }
-
-        return FResult::createResult(std::get<1>(it->second), tok);
-    } else if (fn_node->tok.value == "keys") {
-        auto res = verifyArgsCount(fn_node->args.size(), 0, tok);
-        if (res.has_value()) {
-            return FResult::createError(
-                RunTimeError,
-                res.value(),
-                fn_node->tok
-            );
-        }
-
-        auto list = std::make_shared<ListObject>(tok);
-        list->items.reserve(items.size());
-        for (auto& item: items) {
-            list->items.push_back(std::get<0>(item.second));
-        }
-
-        return FResult::createResult(list, tok);
-    } else if (fn_node->tok.value == "values") {
-        auto res = verifyArgsCount(fn_node->args.size(), 0, tok);
-        if (res.has_value()) {
-            return FResult::createError(
-                    RunTimeError,
-                    res.value(),
-                    fn_node->tok
-            );
-        }
-
-        auto list = std::make_shared<ListObject>(tok);
-        list->items.reserve(items.size());
-        for (auto& item: items) {
-            list->items.push_back(std::get<1>(item.second));
-        }
-
-        return FResult::createResult(list, tok);
-    }
-
-    return Object::callProperty(visitor, fn_node);
-}
-
-flang::FResult flang::DictionaryObject::index(std::shared_ptr<ListObject> idx_args) {
-    if (idx_args->items.size() != 1) {
-        return FResult::createError(
-            IndexError,
-            fmt::format("dict index takes 1 argument but {} were given", idx_args->items.size()),
-            tok
-        );
-    }
-
-    auto first_arg = idx_args->items[0];
-    auto hashed = first_arg->hash(tok);
-    if (hashed.isError())
-        return hashed;
-
-    auto intObject = dynamic_cast<IntObject*>(hashed.result.get()); // TODO: might cause issue?
-
-    auto it = items.find(intObject->value);
-    if (it == items.end()) {
-        return FResult::createError(
-                NameError,
-                fmt::format("key {} not found in dict", first_arg->toString()),
-                first_arg->tok
-        );
-    }
-
-    return FResult::createResult(std::get<1>(it->second), tok);
-}
-
-flang::FResult
-flang::DictionaryObject::index_assign(std::shared_ptr<Object> &right, std::shared_ptr<ListObject> idx_args) {
-    if (idx_args->items.size() != 1) {
-        return FResult::createError(
-            IndexError,
-            fmt::format("dict index takes 1 argument but {} were given", idx_args->items.size()),
-            tok
-        );
-    }
-    auto first_arg = idx_args->items[0];
-    auto hashed = first_arg->hash(tok);
-    if (hashed.isError())
-        return hashed;
-
-    auto intObject = dynamic_cast<IntObject*>(hashed.result.get()); // TODO: might cause issue?
-    items[intObject->value] = std::make_tuple(first_arg, right);
-    return FResult::createResult(right, tok);
-}
-
-flang::FResult flang::DictionaryObject::getProperty(const std::string &name, const Token &tok) {
-    if (name == "size") {
-        return FResult::createResult(std::make_shared<IntObject>(items.size(), tok), tok);
-    }
-    return Object::getProperty(name, tok);
-}
-
 std::string flang::FResult::toString() const {
     const auto &result_str = result != nullptr ? result->toString(): "none";
     const auto &err_str = err != nullptr ? err->toString(): "none";
@@ -270,7 +160,7 @@ std::string flang::FResult::toString() const {
 }
 
 flang::FResult
-flang::FResult::createError(ErrorType err_type, std::string_view msg, const Token& tok) {
+flang::FResult::createError(ErrorType err_type, std::string msg, const Token& tok) {
     auto error = std::make_shared<ErrorObject>(err_type, msg, tok.pos, tok);
     return FResult(error);
 }
@@ -300,6 +190,22 @@ std::string flang::RangeObject::toString() const {
     return fmt::format("Rng({}:{})",  start, end);
 }
 
+flang::FResult flang::RangeObject::to_list(RangeObject &range, flang::Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node) {
+    std::vector<std::shared_ptr<Object>> items;
+    items.resize(range.end);
+    for (int64_t i = range.start; i < range.end; i++) {
+        items[i] = std::make_shared<IntObject>(createInt(i, range.tok));
+    }
+    const auto list = std::make_shared<ListObject>(range.tok);
+    list->items = std::move(items);
+
+    return FResult::createResult(list, range.tok);
+}
+
 std::string flang::RangeObject::getTypeString() const {
     return "range";
+}
+
+std::string flang::ArgumentObject::toString() const {
+    return std::string();
 }

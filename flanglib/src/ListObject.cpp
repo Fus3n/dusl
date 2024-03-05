@@ -52,12 +52,12 @@ flang::FResult flang::ListObject::getProperty(const std::string& name, const Tok
 flang::FResult
 flang::ListObject::get(ListObject& list, flang::Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node) {
 
-    auto res= verifyArgsCount(fn_node->args.size(), 1, list.tok);
+    auto res= verifyArgsCount(fn_node->args_node.args.size(), 1, list.tok);
     if (res.has_value()) {
         return FResult::createError(RunTimeError, res.value(), fn_node->tok);
     }
 
-    auto first_arg = fn_node->args[0]->accept(visitor);
+    auto first_arg = fn_node->args_node.args[0]->accept(visitor);
     if (first_arg.isError())
         return first_arg;
 
@@ -75,11 +75,11 @@ flang::ListObject::get(ListObject& list, flang::Interpreter &visitor, const std:
 // TODO: Fix calling c++ function from language
 flang::FResult
 flang::ListObject::push(ListObject& list, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node) {
-    auto res= verifyArgsCount(fn_node->args.size(), 1, list.tok);
+    auto res= verifyArgsCount(fn_node->args_node.args.size(), 1, list.tok);
     if (res.has_value())
         return FResult::createError(RunTimeError, res.value(), fn_node->tok);
 
-    auto val = fn_node->args[0]->accept(visitor);
+    auto val = fn_node->args_node.args[0]->accept(visitor);
     if (val.isError()) return val;
 
     list.items.push_back(std::move(val.result)); // getting segfault
@@ -88,13 +88,13 @@ flang::ListObject::push(ListObject& list, Interpreter &visitor, const std::share
 
 flang::FResult
 flang::ListObject::set(ListObject& list, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node) {
-    auto res= verifyArgsCount(fn_node->args.size(), 2, list.tok);
+    auto res= verifyArgsCount(fn_node->args_node.args.size(), 2, list.tok);
     if (res.has_value())
         return FResult::createError(RunTimeError, res.value(), fn_node->tok);
 
-    auto index = fn_node->args[0]->accept(visitor);
+    auto index = fn_node->args_node.args[0]->accept(visitor);
     if (index.isError()) return index;
-    auto val = fn_node->args[1]->accept(visitor);
+    auto val = fn_node->args_node.args[1]->accept(visitor);
     if (val.isError()) return val;
 
     if (auto intObj = dynamic_cast<IntObject*>(index.result.get())) {
@@ -162,20 +162,20 @@ flang::ListObject::index_assign(std::shared_ptr<Object> &right, std::shared_ptr<
 }
 
 flang::FResult flang::ListObject::for_each(ListObject &list, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node) {
-    auto res= verifyArgsCount(fn_node->args.size(), 1, list.tok);
+    auto res= verifyArgsCount(fn_node->args_node.args.size(), 1, list.tok);
     if (res.has_value()) {
         return FResult::createError(RunTimeError, res.value(), fn_node->tok);
     }
 
-    auto callback_obj = fn_node->args[0]->accept(visitor);
+    auto callback_obj = fn_node->args_node.args[0]->accept(visitor);
     if (callback_obj.isError()) return callback_obj;
 
     FResult last;
     for (auto & item : list.items) {
-        std::vector<std::shared_ptr<Object>> args {
-           item,
-        };
-        last = callback_obj.result->call(visitor, args, item->tok);
+        std::vector<std::shared_ptr<Object>> args { item };
+        auto argObj = ArgumentObject(args, item->tok);
+
+        last = callback_obj.result->call(visitor, argObj, item->tok);
         if (last.isError())
             return last;
         else if (last.result->isReturn())
@@ -186,7 +186,7 @@ flang::FResult flang::ListObject::for_each(ListObject &list, Interpreter &visito
 }
 
 flang::FResult flang::ListObject::pop_back(ListObject &list, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node) {
-    auto res= verifyArgsCount(fn_node->args.size(), 0, list.tok);
+    auto res= verifyArgsCount(fn_node->args_node.args.size(), 0, list.tok);
     if (res.has_value())
         return FResult::createError(RunTimeError, res.value(), fn_node->tok);
 

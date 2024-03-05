@@ -1,5 +1,6 @@
 #include "flang/FObject.hpp"
 #include "flang/ErrorType.hpp"
+#include "utils/fcore.h"
 #include <fmt/core.h>
 #include <cmath>
 
@@ -166,6 +167,10 @@ flang::FResult flang::FloatObject::hash(const flang::Token &token) const {
 }
 
 flang::FResult flang::FloatObject::to_string(FloatObject &floating, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node) {
+    auto res_arg = verifyArgsCount(fn_node->args_node.args.size(), 0, floating.tok);
+    if (res_arg.has_value())
+        return FResult::createError(RunTimeError, res_arg.value(), fn_node->tok);
+
     auto res = std::make_shared<StringObject>(fmt::format("{}", floating.value), floating.tok);
     return FResult::createResult(res, fn_node->tok);
 }

@@ -57,6 +57,8 @@ flang::DataNode * flang::Parser::statement() {
             return whileStatement();
         } else if (m_token.value == LanguageManager::getValue(ForKey)) {
             return forStatement();
+        } else if (m_token.value == LanguageManager::getValue(ImportKey)) {
+            return importStatement();
         } else if (m_token.value == LanguageManager::getValue(BreakKey)) {
             auto break_tok = m_token;
             eat(TokenType::Keyword);
@@ -118,7 +120,7 @@ flang::DataNode * flang::Parser::expression() {
 flang::DataNode * flang::Parser::rangeExpr() {
     DataNode* left = comparison();
 
-    if (m_token.cmp(TokenType::Colon)) {
+    if (m_token.cmp(TokenType::DoubleDot)) {
         auto op = m_token;
         eat(op.tok);
 
@@ -165,43 +167,13 @@ flang::DataNode * flang::Parser::atom() {
 }
 
 flang::DataNode * flang::Parser::term() {
-    DataNode* left = postExpr();
+    DataNode* left = preExpr();
 
     while (m_token.tok == TokenType::Multiply || m_token.tok == TokenType::Divide || m_token.tok == TokenType::Modulo) {
         auto op = m_token;
         eat(op.tok);
-        auto right = postExpr();
+        auto right = preExpr();
         left = new BinOpNode(left, right, BinOpNode::TokToOperation(op), op);
-    }
-
-    return left;
-}
-
-flang::DataNode * flang::Parser::postExpr() {
-    DataNode* left = preExpr();
-
-    while (m_token.cmp(TokenType::LBracket) || m_token.cmp(TokenType::LSqrBracket) || m_token.cmp(TokenType::Dot)) {
-        auto tok = m_token;
-        if (tok.cmp(TokenType::LBracket)) {
-            auto args = argumentParser();
-            left = new FunctionCallNodeEXPR(left, args, tok);
-        } else if (tok.cmp(TokenType::LSqrBracket)) {
-            auto indexArgs = parseList();
-
-            if (m_token.cmp(TokenType::Equal)) {
-                eat(Equal);
-                auto right = preExpr(); // TODO: possibly needs to change to "expression"
-                left = new IndexAssignNode(left, right, indexArgs, tok);
-            } else {
-                left = new IndexNode(left, indexArgs, tok);
-            }
-        } else if (tok.cmp(TokenType::Dot)) {
-            auto op = m_token;
-            eat(op.tok);
-
-            auto right = preExpr();
-            left = new MemberAccessNode(left, right, op);
-        }
     }
 
     return left;
@@ -213,14 +185,44 @@ flang::DataNode * flang::Parser::preExpr() {
     while (m_token.cmp(TokenType::Keyword) && m_token.value == LanguageManager::getValue(NotKey)) {
         auto op = m_token;
         eat(Keyword);
-        auto expr = factor();
+        auto expr = postExpr();
         left = new UnaryOpNode(expr, UnaryOpNode::Operations::OP_NOT, op);
     }
 
     if (!left)
-        return factor();
+        return postExpr();
     else
         return left;
+}
+
+flang::DataNode * flang::Parser::postExpr() {
+    DataNode* left = factor();
+
+    while (m_token.cmp(TokenType::LBracket) || m_token.cmp(TokenType::LSqrBracket) || m_token.cmp(TokenType::Dot)) {
+        auto tok = m_token;
+        if (tok.cmp(TokenType::LBracket)) {
+            auto args = parseFuncArgument();
+            left = new FunctionCallNodeEXPR(left, args, tok);
+        } else if (tok.cmp(TokenType::LSqrBracket)) {
+            auto indexArgs = parseList();
+
+            if (m_token.cmp(TokenType::Equal)) {
+                eat(Equal);
+                auto right = factor(); // TODO: possibly needs to change to "expression"
+                left = new IndexAssignNode(left, right, indexArgs, tok);
+            } else {
+                left = new IndexNode(left, indexArgs, tok);
+            }
+        } else if (tok.cmp(TokenType::Dot)) {
+            auto op = m_token;
+            eat(op.tok);
+
+            auto right = factor();
+            left = new MemberAccessNode(left, right, op);
+        }
+    }
+
+    return left;
 }
 
 flang::DataNode * flang::Parser::factor() {
@@ -262,7 +264,7 @@ flang::DataNode * flang::Parser::factor() {
 
     m_token.pos.setCodeAndFile(m_code, m_file_name);
     FError(SyntaxError,
-           fmt::format("Unexpected expression \"{}\"", m_token.ToString()),
+           fmt::format("Unexpected expression \"{}\"", m_token.toString()),
            m_token.pos
     ).Throw();
 
@@ -280,8 +282,8 @@ flang::DataNode * flang::Parser::bracketExpr() {
 flang::DataNode * flang::Parser::funcCall() {
     auto func_name = m_token;
     eat(Ident);
-    auto arguments = argumentParser();
-    return new FunctionCallNode(func_name, std::move(arguments));
+    auto arguments = parseFuncArgument(false);
+    return new FunctionCallNode(func_name, arguments);
 }
 
 flang::DataNode * flang::Parser::funcDef() {
@@ -297,9 +299,42 @@ flang::DataNode * flang::Parser::funcDef() {
         is_anon = true;
     }
 
-    auto arguments = argumentParser();
+    auto arguments = parseFuncArgument(true);
     auto block = scopeBlock(tok);
-    return new FunctionDefNode(func_name, std::move(arguments), block, tok, is_anon);
+    return new FunctionDefNode(func_name, arguments, block, tok, is_anon);
+}
+
+flang::ArgumentNode flang::Parser::parseFuncArgument(bool is_define) {
+    auto tok = m_token;
+    std::vector<std::shared_ptr<DataNode>> args;
+    std::unordered_map<std::string, std::shared_ptr<DataNode>> default_args;
+
+    eat(LBracket);
+    // collect the arguments inside bracket
+
+    while (!m_token.cmp(Eof) && !m_token.cmp(RBracket)) {
+        auto expr = expression();
+        // check if its default argument
+        if (auto varAccess = dynamic_cast<VarAccessNode*>(expr)) {
+            args.emplace_back(expr);
+        } else if (auto assignNode = dynamic_cast<AssignmentNode*>(expr)) {
+            default_args.emplace(assignNode->tok.value, assignNode->expr);
+        } else if (is_define) {
+            FError(SyntaxError,
+                   "Invalid argument",
+                   expr->tok.pos
+            ).Throw();
+        } else {
+            args.emplace_back(expr);
+        }
+
+        if (m_token.cmp(Comma)) {
+            eat(Comma);
+        }
+    }
+    eat(RBracket);
+
+    return {std::move(args), std::move(default_args), tok};
 }
 
 std::vector<std::shared_ptr<flang::DataNode>> flang::Parser::argumentParser() {
@@ -356,7 +391,7 @@ flang::DataNode * flang::Parser::parseAssignment() {
 flang::DataNode * flang::Parser::structDef() {
     eat(Keyword);
 
-    auto struct_name = m_token;
+    const auto struct_name = m_token;
     eat(Ident);
 
     eat(LBrace);
@@ -372,7 +407,7 @@ flang::DataNode * flang::Parser::structDef() {
 flang::DataNode* flang::Parser::parseStructBody() {
     // Allow what a struct body should have
     if (m_token.cmp(TokenType::Ident)) {
-        auto peeked = peek();
+        const auto peeked = peek();
         if (peeked.has_value() && peeked.value().cmp(flang::Equal)) {
             return parseAssignment();
         } else {
@@ -495,4 +530,42 @@ flang::DataNode *flang::Parser::forStatement() {
     return new ForLoopNode(ident.value, expr, block, curr_tok);
 }
 
+flang::DataNode *flang::Parser::importStatement() {
+    auto import_tok = m_token;
+    eat(Keyword); // skip "import" keyword
+
+    // symbols to import
+    std::vector<std::string> symbols{};
+    std::string module_path;
+    bool import_all = false;
+
+    if (m_token.cmp(TokenType::LSqrBracket)) {
+        eat(LSqrBracket);
+        while (!m_token.cmp(Eof) && !m_token.cmp(RSqrBrack)) {
+            auto sym = m_token;
+            eat(Ident);
+            symbols.push_back(sym.value);
+            if (m_token.cmp(RSqrBrack))
+                break;
+            else if (m_token.cmp(Comma))
+                eat(Comma);
+        }
+        eat(RSqrBrack);
+        if  (!(m_token.cmp(Keyword) && m_token.value == LanguageManager::getValue(FromKey))) {
+            FError(SyntaxError,
+                   fmt::format("Expected keyword \"{}\" ", LanguageManager::getValue(FromKey)),
+                   m_token.pos
+            ).Throw();
+        }
+        eat(Keyword);
+        module_path = m_token.value;
+        eat(STRING);
+    } else {
+        module_path = m_token.value;
+        eat(STRING);
+        import_all = true;
+    }
+
+    return new ImportNode(module_path, std::move(symbols), import_all, import_tok);
+}
 
