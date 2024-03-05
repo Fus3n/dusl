@@ -19,7 +19,7 @@
 - optional arguments in functions
 - unary operations (WIP)
 - struct functions
-- struct defining functionality
+- ~~struct defining functionality~~
 - struct access functionality
 - ~~Make every object return an error object instead of exiting the program~~
 - ErrorObject that tracks and prints error's
@@ -34,4 +34,4 @@
 - ~~Move all builtin-functions/variables into separate file and functions to load it~~
 - Standard library (io, math, simple networking)
 - More streamlined process of adding functions
-- Add constructors for conversion from C++ primitives to flang primitive
+- Add constructors for conversion from C++ primitives to dusl primitive

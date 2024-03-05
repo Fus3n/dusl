@@ -1,5 +1,5 @@
-# Flang
-a language that's not unique at all
+# Dusl
+DUSL = **D**ynamic **U**tility And **S**cripting **L**anguage
 
 
 ## Build
