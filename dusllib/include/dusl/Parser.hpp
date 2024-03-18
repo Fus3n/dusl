@@ -12,7 +12,7 @@ namespace dusl {
     public:
         Parser();
         void eat(TokenType tt);
-        dusl::ProgramNode parse(std::string_view code, std::string_view file_name, const std::vector<Token> &tokens);
+        dusl::ProgramNode parse(const std::string& code, const std::string& file_name, const std::vector<Token> &tokens);
         dusl::ProgramNode program();
 
         DataNode * block();
@@ -53,8 +53,8 @@ namespace dusl {
         std::vector<Token> m_toks;
         Token m_token;
         int m_tok_idx = 0;
-        std::string_view m_code;
-        std::string_view m_file_name;
+        std::string_view m_code = "";
+        std::string_view m_file_name = "";
     };
 
 }

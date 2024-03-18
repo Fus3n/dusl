@@ -13,10 +13,3 @@ fn mul(a, b) {
 fn div(a, b) {
     return a / b
 }
-
-fn round(a) {
-    if type(a) == "float" {
-        return a.toInt()
-    }
-
-}

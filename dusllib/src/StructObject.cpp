@@ -45,7 +45,7 @@ dusl::FResult dusl::StructInstanceObject::getProperty(const std::string &name, c
     return FResult::createResult(properties.at(name), tok);
 }
 
-dusl::FResult dusl::StructInstanceObject::callProperty(Interpreter &visitor, const std::shared_ptr<dusl::FunctionCallNode> &fn_node) {
+dusl::FResult dusl::StructInstanceObject::callProperty(Interpreter &visitor, const std::shared_ptr<dusl::FunctionCallNode> fn_node) {
     if (properties.count(fn_node->tok.value) == 0) {
         return Object::callProperty(visitor, fn_node);
     }
@@ -56,6 +56,6 @@ dusl::FResult dusl::StructInstanceObject::callProperty(Interpreter &visitor, con
 
     ArgumentObject arg_obj_new = *dynamic_cast<ArgumentObject*>(args_result.result.get());
 
-    const auto func = properties.at(fn_node->tok.value);
+    auto& func = properties.at(fn_node->tok.value);
     return func->call(visitor, arg_obj_new, tok);
 }

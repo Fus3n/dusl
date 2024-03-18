@@ -26,9 +26,9 @@ namespace dusl {
         FResult() = default;
 
         explicit FResult(std::shared_ptr<Object> _result) : result(std::move(_result)), is_error(false) {}
-        explicit FResult(std::shared_ptr<ErrorObject> _err) : err(std::move(_err)), is_error(true) {}
+        explicit FResult(std::shared_ptr<ErrorObject> _err) : err(_err), is_error(true) {}
 
-        static dusl::FResult createError(ErrorType err_type, std::string msg, const Token &tok);
+        static dusl::FResult createError(ErrorType err_type, std::string msg, const Token& tok);
         static dusl::FResult createResult(const std::shared_ptr<Object> &_result, const Token &tok);
 
         [[nodiscard]] bool isError() const;
@@ -52,15 +52,15 @@ namespace dusl {
         [[nodiscard]] virtual bool isReturn() const;
         [[nodiscard]] virtual bool isBreak() const;
 
-        virtual dusl::FResult getProperty(const std::string &name, const Token &tok);
-        virtual dusl::FResult callProperty(Interpreter &visitor, const std::shared_ptr<dusl::FunctionCallNode> &fn_node);
+        virtual dusl::FResult getProperty(const std::string &name, const Token &token);
+        virtual dusl::FResult callProperty(Interpreter &visitor, const std::shared_ptr<dusl::FunctionCallNode> fn_node);
 
         [[nodiscard]] virtual std::string toString() const = 0;
         [[nodiscard]] virtual std::string getTypeString() const;
         [[nodiscard]] virtual dusl::FResult hash(const dusl::Token &token) const;
 
         virtual dusl::FResult call(Interpreter &visitor, ArgumentObject &args_node, const Token &token);
-        virtual dusl::FResult index(std::shared_ptr<ListObject> idx_args);
+        virtual dusl::FResult index(std::shared_ptr<ListObject> idx_args, const std::optional<Token> token = std::nullopt);
         virtual dusl::FResult index_assign(std::shared_ptr<Object> &right, std::shared_ptr<ListObject> idx_args);
 
         // object functions
@@ -119,7 +119,7 @@ namespace dusl {
 
         [[nodiscard]] std::string toString() const override;
         [[nodiscard]] dusl::FResult hash(const dusl::Token &token) const override;
-        dusl::FResult index(std::shared_ptr<ListObject> idx_args) override;
+        dusl::FResult index(std::shared_ptr<ListObject> idx_args, const std::optional<Token> token = std::nullopt) override;
         [[nodiscard]] bool isTrue() const override;
         [[nodiscard]] std::string getTypeString() const override;
 
@@ -138,9 +138,14 @@ namespace dusl {
         static dusl::FResult to_upper(StringObject &str, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node);
         static dusl::FResult is_digit(StringObject &str, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node);
         static dusl::FResult is_alpha(StringObject &str, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node);
+        static dusl::FResult is_upper(StringObject &str, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node);
+        static dusl::FResult is_lower(StringObject& str, Interpreter& visitor, const std::shared_ptr<FunctionCallNode>& fn_node);
+        static dusl::FResult get_code_at(StringObject& str, Interpreter& visitor, const std::shared_ptr<FunctionCallNode>& fn_node);
         static dusl::FResult replace(StringObject &str, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node);
+        static dusl::FResult join(StringObject& str, Interpreter& visitor, const std::shared_ptr<FunctionCallNode>& fn_node);
         static dusl::FResult starts_with(StringObject &str, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node);
         static dusl::FResult ends_with(StringObject &str, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node);
+
 
     };
 
@@ -246,14 +251,15 @@ namespace dusl {
 
         [[nodiscard]] std::string toString() const override;
 
-        dusl::FResult index(std::shared_ptr<ListObject> idx_args) override;
+        dusl::FResult index(std::shared_ptr<ListObject> idx_args, const std::optional<Token> token = std::nullopt) override;
         dusl::FResult index_assign(std::shared_ptr<Object> &right, std::shared_ptr<ListObject> idx_args) override;
+
+        dusl::FResult add_to(const std::shared_ptr<Object>& other, const Token& token) override;
 
         [[nodiscard]] bool isTrue() const override;
         dusl::FResult getProperty(const std::string &name, const Token &token) override;
         std::string getTypeString() const override;
-        static std::shared_ptr<Object>
-        splitAtDelimiter(const std::string &value, const std::string &delim, const Token &tok);
+        static std::shared_ptr<Object> splitAtDelimiter(const std::string &value, const std::string &delim, const Token &tok);
 
     private:
         // functions
@@ -285,9 +291,7 @@ namespace dusl {
         [[nodiscard]] std::string toString() const override;
         [[nodiscard]] std::string getTypeString() const override;
         dusl::FResult getProperty(const std::string &name, const Token &tok) override;
-        dusl::FResult
-        callProperty(Interpreter &visitor, const std::shared_ptr<dusl::FunctionCallNode> &fn_node) override;
-        dusl::FResult index(std::shared_ptr<ListObject> idx_args) override;
+        dusl::FResult index(std::shared_ptr<ListObject> idx_args, const std::optional<Token> token = std::nullopt) override;
         dusl::FResult index_assign(std::shared_ptr<Object> &right, std::shared_ptr<ListObject> idx_args) override;
 
         // static
@@ -382,9 +386,9 @@ namespace dusl {
     public:
         ErrorType err_type;
         std::string err_msg;
-        const Position &pos;
+        const Position pos;
 
-        ErrorObject(ErrorType _err_type, std::string _err_msg, const Position &_pos, Token tok) :
+        ErrorObject(ErrorType _err_type, std::string _err_msg, const Position _pos, Token tok) :
                 Object(std::move(tok)), err_type(_err_type), err_msg(std::move(_err_msg)), pos(_pos) {}
 
         [[nodiscard]] std::string toString() const override;
@@ -436,7 +440,7 @@ namespace dusl {
         [[nodiscard]] std::string toString() const override;
         [[nodiscard]] std::string getTypeString() const override;
         dusl::FResult getProperty(const std::string &name, const Token &tok) override;
-        dusl::FResult callProperty(Interpreter &visitor, const std::shared_ptr<dusl::FunctionCallNode> &fn_node) override;
+        dusl::FResult callProperty(Interpreter &visitor, const std::shared_ptr<dusl::FunctionCallNode> fn_node) override;
     };
 
 }

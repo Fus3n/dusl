@@ -24,11 +24,11 @@ struct Bank {
     }
 }
 
-bank = Bank()
-bank.addUser("Fusen", money=300)
-bank.addUser("Flin")
-m = bank.getMoney("Fusen")
-bank.showUsers()
-println("Fusen stole", m.toStr() + "$")
+#bank = Bank()
+#bank.addUser("Fusen", money=300)
+#bank.addUser("Flin")
+#m = bank.getMoney("Fusen")
+#bank.showUsers()
+#println("Fusen stole", m.toStr() + "$")
 
 

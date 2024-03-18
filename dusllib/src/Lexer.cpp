@@ -116,16 +116,17 @@ std::vector<dusl::Token> dusl::Lexer::getTokens() {
 	return m_tokens;
 }
 
-dusl::Lexer::Lexer(): m_tok('\0'), m_tok_idx(0) {}
+dusl::Lexer::Lexer(): m_tok('\0'), m_tok_idx(0), m_code(""), file_name("") {}
 
-std::vector<dusl::Token> dusl::Lexer::tokenize(std::string_view code, std::string_view _file_name)
+std::vector<dusl::Token> dusl::Lexer::tokenize(const std::string& _file_name, const std::string& code, const std::string& repl_code)
 {
+
     if (code.empty())
         return m_tokens;
 
     m_code = code;
     file_name = _file_name;
-    m_pos.code = code;
+    m_pos.repl_code = repl_code;
     m_pos.file_name = _file_name;
     nextTok(); // load the first character to tok
 

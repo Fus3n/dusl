@@ -1,5 +1,6 @@
 #include <fstream>
 #include <dusl/utils/common.h>
+#include <filesystem>
 
 std::vector<std::string_view> dusl::split_lines(const std::string_view str) {
     std::vector<std::string_view> lines;
@@ -59,16 +60,23 @@ std::string dusl::getOsName()
 }
 
 std::string dusl::read_file(const std::string& file_name) {
+    if (file_name.empty()) {
+        throw std::runtime_error("File name is empty");
+    }
     std::string contents;
     std::ifstream file(file_name);
     if (!file.is_open()) {
         throw std::runtime_error("Failed to open file");
     }
-    while (!file.eof()) {
-        std::string line;
-        std::getline(file, line);
-        contents += line + "\n";
-    }
+    try {
+        while (!file.eof()) {
+            std::string line;
+            std::getline(file, line);
+            contents += line + "\n";
+        }
+    } catch (...) {
+		throw std::runtime_error("Failed to read file");
+	}
     file.close();
     return contents;
 }

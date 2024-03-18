@@ -19,26 +19,12 @@ std::string dusl::DictionaryObject::getTypeString() const {
     return "dict";
 }
 
-dusl::FResult dusl::DictionaryObject::callProperty(Interpreter &visitor, const std::shared_ptr<dusl::FunctionCallNode> &fn_node) {
-    // todo update all to static functions
-    if (fn_node->tok.value == "get") {
-
-    } else if (fn_node->tok.value == "keys") {
-
-    } else if (fn_node->tok.value == "values") {
-
-    }
-
-    return Object::callProperty(visitor, fn_node);
-}
-
-dusl::FResult dusl::DictionaryObject::index(std::shared_ptr<ListObject> idx_args) {
+dusl::FResult dusl::DictionaryObject::index(std::shared_ptr<ListObject> idx_args, const std::optional<Token> token) {
     if (idx_args->items.size() != 1) {
         return FResult::createError(
             IndexError,
             fmt::format("dict index takes 1 argument but {} were given", idx_args->items.size()),
-            tok
-        );
+            tok);
     }
 
     auto first_arg = idx_args->items[0];
@@ -53,8 +39,7 @@ dusl::FResult dusl::DictionaryObject::index(std::shared_ptr<ListObject> idx_args
         return FResult::createError(
                 NameError,
                 fmt::format("key {} not found in dict", first_arg->toString()),
-                first_arg->tok
-        );
+                first_arg->tok);
     }
 
     return FResult::createResult(std::get<1>(it->second), tok);
@@ -66,8 +51,7 @@ dusl::DictionaryObject::index_assign(std::shared_ptr<Object> &right, std::shared
         return FResult::createError(
             IndexError,
             fmt::format("dict index takes 1 argument but {} were given", idx_args->items.size()),
-            tok
-        );
+            tok);
     }
     auto first_arg = idx_args->items[0];
     auto hashed = first_arg->hash(tok);
@@ -91,8 +75,7 @@ dusl::FResult dusl::DictionaryObject::exists(DictionaryObject &dict, dusl::Inter
         return FResult::createError(
             RunTimeError,
             res.value(),
-            fn_node->tok
-        );
+            fn_node->tok);
     }
 
     auto first_arg = fn_node->args_node.args[0]->accept(visitor);
@@ -115,8 +98,7 @@ dusl::FResult dusl::DictionaryObject::get(DictionaryObject &dict, dusl::Interpre
         return FResult::createError(
             RunTimeError,
             res.value(),
-            fn_node->tok
-        );
+            fn_node->tok);
     }
 
     auto first_arg = fn_node->args_node.args[0]->accept(visitor);
@@ -141,8 +123,7 @@ dusl::FResult dusl::DictionaryObject::keys(DictionaryObject &dict, dusl::Interpr
         return FResult::createError(
             RunTimeError,
             res.value(),
-            fn_node->tok
-        );
+            fn_node->tok);
     }
 
     const auto list = std::make_shared<ListObject>(dict.tok);
@@ -150,7 +131,6 @@ dusl::FResult dusl::DictionaryObject::keys(DictionaryObject &dict, dusl::Interpr
     for (auto& item: dict.items) {
         list->items.push_back(std::get<0>(item.second));
     }
-
     return FResult::createResult(list, dict.tok);
 }
 
@@ -159,8 +139,7 @@ dusl::FResult dusl::DictionaryObject::values(DictionaryObject &dict, dusl::Inter
         return FResult::createError(
                 RunTimeError,
                 res.value(),
-                fn_node->tok
-        );
+                fn_node->tok);
     }
 
     const auto list = std::make_shared<ListObject>(dict.tok);

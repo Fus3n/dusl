@@ -16,8 +16,10 @@ std::string dusl::DError::generateErrString() {
             m_pos.row
     );
 
-    auto lines = split_lines(m_pos.code);
-    auto line = lines[m_pos.line];
+    auto& code = read_file(m_pos.file_name);
+    auto lines = split_lines(code);
+    auto& line = lines[m_pos.line];
+
     msg += fmt::format("\n{}\n", line);
     msg += fmt::format("{: >{}}", "", m_pos.row);
     msg += fmt::format(

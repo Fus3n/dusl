@@ -17,13 +17,13 @@ std::string dusl::Position::toString() {
 
 dusl::Position dusl::Position::copy() const {
     auto pos = dusl::Position(line, row);
-    pos.code = code;
+    pos.repl_code = repl_code;
     pos.file_name = file_name;
     return pos;
 }
 
-void dusl::Position::setCodeAndFile(std::string_view _code, std::string_view _file_name) {
-    code = _code;
+void dusl::Position::setCodeAndFile(const std::string& _code, const std::string& _file_name) {
+    repl_code = _code;
     file_name = _file_name;
 }
 

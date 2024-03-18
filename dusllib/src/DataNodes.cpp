@@ -128,7 +128,7 @@ std::string dusl::MemberAccessNode::toString() const {
 }
 
 dusl::FResult dusl::ProgramNode::accept(Interpreter &visitor) {
-    dusl::FResult val;
+    dusl::FResult val = FResult::createResult(std::make_shared<NoneObject>(tok), tok);;
     for (auto& statement: statements) {
         val = statement->accept(visitor);
         if (val.isError())
@@ -148,7 +148,7 @@ nlohmann::ordered_json dusl::ProgramNode::toJson() const {
 }
 
 dusl::FResult dusl::BlockNode::accept(Interpreter &visitor) {
-    dusl::FResult val;
+    dusl::FResult val = FResult::createResult(std::make_shared<NoneObject>(tok), tok);
     for (auto& statement: statements) {
         val = statement->accept(visitor);
 
@@ -206,8 +206,7 @@ dusl::FResult dusl::VarAccessNode::accept(Interpreter &visitor) {
         return FResult::createError(
             NameError,
             fmt::format("variable '{}' is not defined", tok.value),
-            tok
-        );
+            tok);
     }
 
     return FResult::createResult(visitor.ctx.currentSymbol().getValue(tok.value), tok);
@@ -277,8 +276,7 @@ dusl::FResult dusl::FunctionCallNode::accept(Interpreter &visitor) {
         return FResult::createError(
             NameError,
             fmt::format("variable '{}' is not defined", tok.value),
-            tok
-        );
+            tok);
     }
 
     auto function = visitor.ctx.currentSymbol().getValue(tok.value);
@@ -431,14 +429,19 @@ dusl::FResult dusl::MemberAccessNode::accept(Interpreter &visitor) {
             // add left as argument as first value
             func->args_node.args.insert(func->args_node.args.begin(), left_node);
         }
-        return left_obj.result->callProperty(visitor, std::make_shared<FunctionCallNode>(*func));
+        auto new_func = std::make_shared<FunctionCallNode>(*func);
+        //new_func->tok = tok;
+        new_func->tok.pos.file_name = tok.pos.file_name;
+        new_func->tok.pos.line = tok.pos.line;
+		new_func->tok.pos.row = tok.pos.row;
+
+        return left_obj.result->callProperty(visitor, new_func);
     }
 
     return FResult::createError(
         RunTimeError,
         fmt::format("Invalid property '{}'", right_node->toString()),
-        tok
-    );
+        tok);
 }
 
 nlohmann::ordered_json dusl::MemberAccessNode::toJson() const {
@@ -665,7 +668,7 @@ std::string dusl::WhileLoopNode::toString() const {
 }
 
 dusl::FResult dusl::WhileLoopNode::accept(Interpreter &visitor) {
-    FResult last_result;
+    FResult last_result = FResult::createResult(std::make_shared<NoneObject>(tok), tok);
 
     auto cond = cond_node.condition_node->accept(visitor);
     if (cond.isError())
@@ -674,8 +677,9 @@ dusl::FResult dusl::WhileLoopNode::accept(Interpreter &visitor) {
     while (cond.result->isTrue()) {
         last_result = cond_node.body_node->accept(visitor);
 
-        if (last_result.isError() || last_result.result->isBreak() || last_result.result->isReturn())
+        if (last_result.isError() || last_result.result->isBreak() || last_result.result->isReturn()) {
             return last_result;
+        }
 
         cond = cond_node.condition_node->accept(visitor);
     }
@@ -757,12 +761,15 @@ nlohmann::ordered_json dusl::FunctionCallNodeEXPR::toJson() const {
 
 dusl::FResult dusl::IndexNode::accept(Interpreter &visitor) {
     auto left_obj = expr->accept(visitor);
-    if (left_obj.isError()) return left_obj;
-    auto list_obj = index_args->accept(visitor);
-    if (list_obj.isError()) return list_obj;
+    if (left_obj.isError()) 
+        return left_obj;
 
-    if (auto list = dynamic_cast<ListObject*>(list_obj.result.get())) {
-        return left_obj.result->index(std::make_shared<ListObject>(*list));
+    auto list_obj = index_args->accept(visitor);
+    if (list_obj.isError()) 
+        return list_obj;
+
+    if (ListObject* list = dynamic_cast<ListObject*>(list_obj.result.get())) {
+        return left_obj.result->index(std::make_shared<ListObject>(*list), tok);
     }
 
     return FResult::createError(
@@ -812,8 +819,7 @@ dusl::FResult dusl::IndexAssignNode::accept(Interpreter &visitor) {
     return FResult::createError(
         IndexError,
         fmt::format("Invalid index '{}'", index_args->toString()),
-        tok
-    );
+        tok);
 }
 
 std::string dusl::BreakNode::toString() const {
@@ -852,15 +858,13 @@ dusl::FResult dusl::RangeNode::accept(dusl::Interpreter &visitor) {
             return FResult::createError(
                     RunTimeError,
                     fmt::format("Range end takes int but received {}", end_obj.result->getTypeString()),
-                    tok
-            );
+                    tok);
         }
     } else {
         return FResult::createError(
                 RunTimeError,
                 fmt::format("Range start takes int but received {}", end_obj.result->getTypeString()),
-                tok
-        );
+                tok);
     }
 
     return FResult::createResult(std::make_shared<RangeObject>(start_val, end_val, tok), tok);
@@ -897,20 +901,24 @@ dusl::FResult dusl::ForLoopNode::accept(dusl::Interpreter &visitor) {
     visitor.ctx.setName(new_name);
     visitor.ctx.enterScope();
 
-    FResult result;
+    FResult result = FResult::createResult(std::make_shared<NoneObject>(tok), tok);
     if (auto range = dynamic_cast<RangeObject*>(expr_obj.result.get())) {
-        // TODO: handle if start is greater than end
         if (range->start > range->end) {
             return FResult::createResult(std::make_shared<NoneObject>(tok), tok);
         }
+
         for (int64_t index = range->start; index < range->end; index++) {
             auto ident_obj = std::make_shared<IntObject>(index, tok);
+
             visitor.ctx.currentSymbol().setValue(ident, ident_obj);
 
             result = block->accept(visitor);
             if (result.isError() || result.result->isBreak() || result.result->isReturn())
                 return result;
         }
+
+        return FResult::createResult(std::make_shared<NoneObject>(tok), tok);
+
     } else if (auto list = dynamic_cast<ListObject*>(expr_obj.result.get())) {
         for (const auto& item: list->items) {
             visitor.ctx.currentSymbol().setValue(ident, item);
@@ -931,8 +939,7 @@ dusl::FResult dusl::ForLoopNode::accept(dusl::Interpreter &visitor) {
         return FResult::createError(
                 RunTimeError,
                 fmt::format("'{}' is not iterable", expr->toString()),
-                tok
-        );
+                tok);
     }
 
     visitor.ctx.exitScope();
@@ -980,7 +987,7 @@ dusl::FResult dusl::ImportNode::accept(dusl::Interpreter &visitor) {
     }
 
     if (!path.has_extension()) {
-        path = path.concat(".flin"); // TODO: file extension
+        path = path.concat(".dusl"); // TODO: file extension
     }
 
     auto file_context_name = path.stem().string();
@@ -989,14 +996,19 @@ dusl::FResult dusl::ImportNode::accept(dusl::Interpreter &visitor) {
         return FResult::createError(
             ImportError,
             fmt::format("Cannot import same file '{}'", module_path),
-            tok
-        );
+            tok);
     }
 
     try {
+        if (!exists(path)) {
+            return FResult::createError(
+                ImportError,
+                fmt::format("No such module named '{}' was found", path.string()),
+                tok
+            );
+		}
         code = dusl::read_file(path.string());
-    } catch (std::exception &e) {
-        fmt::println("{}, FILE: {}", e.what(), path.string());
+    } catch (std::runtime_error &e) {
         return FResult::createError(
             ImportError,
             fmt::format("Could not import module '{}'", path.string()),
@@ -1009,8 +1021,8 @@ dusl::FResult dusl::ImportNode::accept(dusl::Interpreter &visitor) {
         return FResult::createResult(std::make_shared<NoneObject>(tok), tok);
     }
 
-    auto tokens = lexer.tokenize(code, module_path);
-    auto ast = parser.parse(code, module_path, tokens);
+    auto tokens = lexer.tokenize(path.string(), code);
+    auto ast = parser.parse(code, path.string(), tokens);
 
     SymbolTable base_table = visitor.ctx.currentSymbol();
 
@@ -1043,8 +1055,7 @@ dusl::FResult dusl::ImportNode::accept(dusl::Interpreter &visitor) {
         return FResult::createError(
             ImportError,
             fmt::format("module '{}' doesn't contain symbol '{}'", module_path, sym),
-            tok
-        );
+            tok);
     }
     visitor.ctx.setName(current_ctx_name);
     visitor.ctx.exitScope();

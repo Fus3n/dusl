@@ -29,6 +29,9 @@ getElapsedTimeMS(start ms, end ms) # -> int, time in ms in integer,
 hash(object) # -> integer, get hash for supported types
 system(string) # -> integer, execute the command line command, its like C's "system" function
 rnd(max) # -> integer, returns a random integer from 0 to max
+round(value) -> integer,  rounds the value
+floor(value) -> integer, floors the value
+error(string) -> throw a error with the message and stop the program
 exit() # -> exit the program
 ```
 
@@ -66,6 +69,9 @@ string.toLower() # -> str, to lowercase
 string.toUpper() # -> str, to uppercase
 string.isDigit() # -> bool, check if digit or not
 string.isAlpha() # -> bool, check if alpha or not
+string.getCodeAt(index) -> int, returns ascii code at index
+string.join(list of string) -> string, joins the elements with string value as delimeter
+string[index] # string, get string value at index
 # these are all the string functions and props available for now
 ```
 

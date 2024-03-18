@@ -14,7 +14,7 @@ int main(int argc, char* argv[])
     // TODO: LATEST: fix json output not having expected ret
     // TODO: fix "not" operator not workig wiht memberacess
 
-    if (argc < 1) {
+    if (argc < 2) {
         std::cerr << "Usage: dusl [file]" << std::endl;
         return 1;
     }

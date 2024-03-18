@@ -50,9 +50,18 @@ dusl::FResult dusl::ListObject::getProperty(const std::string& name, const Token
 }
 
 dusl::FResult
+dusl::ListObject::add_to(const std::shared_ptr<Object>& other, const Token& token) {
+    if (auto listObj = std::dynamic_pointer_cast<ListObject>(other)) {
+        this->items.insert(this->items.end(), listObj->items.begin(), listObj->items.end());
+		return FResult::createResult(std::make_shared<ListObject>(*this), token);
+    }
+    return Object::add_to(other, token);
+}
+
+dusl::FResult
 dusl::ListObject::get(ListObject& list, dusl::Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node) {
 
-    auto res= verifyArgsCount(fn_node->args_node.args.size(), 1, list.tok);
+    auto res = verifyArgsCount(fn_node->args_node.args.size(), 1, list.tok);
     if (res.has_value()) {
         return FResult::createError(RunTimeError, res.value(), fn_node->tok);
     }
@@ -70,6 +79,12 @@ dusl::ListObject::get(ListObject& list, dusl::Interpreter &visitor, const std::s
         }
         return FResult::createResult(list.items[intObj->value], fn_node->tok);
     }
+
+    return FResult::createError(
+        TypeError,
+        fmt::format("list indices must be integers or ranges, not {}", first_arg.result->getTypeString()),
+        first_arg.result->tok
+    );
 }
 
 // TODO: Fix calling c++ function from language
@@ -88,7 +103,7 @@ dusl::ListObject::push(ListObject& list, Interpreter &visitor, const std::shared
 
 dusl::FResult
 dusl::ListObject::set(ListObject& list, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node) {
-    auto res= verifyArgsCount(fn_node->args_node.args.size(), 2, list.tok);
+    auto res = verifyArgsCount(fn_node->args_node.args.size(), 2, list.tok);
     if (res.has_value())
         return FResult::createError(RunTimeError, res.value(), fn_node->tok);
 
@@ -111,7 +126,35 @@ std::string dusl::ListObject::getTypeString() const {
     return "list";
 }
 
-dusl::FResult dusl::ListObject::index(std::shared_ptr<ListObject> idx_args) {
+dusl::FResult dusl::ListObject::index(std::shared_ptr<ListObject> idx_args, const std::optional<Token> token) {
+    if (idx_args->items.size() != 1) {
+        return FResult::createError(
+            IndexError,
+            fmt::format("list index takes 1 argument but {} were given", idx_args->items.size()),
+            tok
+       );
+    }
+
+    auto& first_arg = idx_args->items[0];
+    if (auto intObj = dynamic_cast<IntObject*>(first_arg.get())) {
+        if (intObj->value > items.size() - 1) {
+            return FResult::createError(
+                    IndexError,
+                    fmt::format("Index out of range {}", intObj->value),
+                first_arg->tok);
+        }
+        return FResult::createResult(items[intObj->value], tok);
+    }
+
+    return FResult::createError(
+        TypeError,
+        fmt::format("list indices must be integers or ranges, not {}", first_arg->getTypeString()),
+        tok // TODO: fix, use first_arg token instead of list token
+    );
+}
+
+dusl::FResult
+dusl::ListObject::index_assign(std::shared_ptr<Object> &right, std::shared_ptr<ListObject> idx_args) {
     if (idx_args->items.size() != 1) {
         return FResult::createError(
             IndexError,
@@ -120,39 +163,13 @@ dusl::FResult dusl::ListObject::index(std::shared_ptr<ListObject> idx_args) {
         );
     }
 
-    auto first_arg = idx_args->items[0];
+    auto& first_arg = idx_args->items[0];
     if (auto intObj = dynamic_cast<IntObject*>(first_arg.get())) {
         if (intObj->value > items.size() - 1) {
             return FResult::createError(
                     IndexError,
                     fmt::format("Index out of range {}", intObj->value),
-                first_arg->tok
-            );
-        }
-        return FResult::createResult(items[intObj->value], tok);
-    }
-
-    return Object::index(idx_args);
-}
-
-dusl::FResult
-dusl::ListObject::index_assign(std::shared_ptr<Object> &right, std::shared_ptr<ListObject> idx_args) {
-    if (idx_args->items.size() != 1) {
-        return FResult::createError(
-                IndexError,
-                fmt::format("list index takes 1 argument but {} were given", idx_args->items.size()),
-                tok
-        );
-    }
-
-    auto first_arg = idx_args->items[0];
-    if (auto intObj = dynamic_cast<IntObject*>(first_arg.get())) {
-        if (intObj->value > items.size() - 1) {
-            return FResult::createError(
-                    IndexError,
-                    fmt::format("Index out of range {}", intObj->value),
-                    first_arg->tok
-            );
+                    first_arg->tok);
         }
         items[intObj->value] = right;
         return FResult::createResult(right, tok);

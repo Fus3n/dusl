@@ -6,6 +6,10 @@ std::string dusl::ErrorObject::toString() const {
 }
 
 std::string dusl::ErrorObject::generateErrString() const {
+    if (pos.file_name.empty()) {
+		fmt::println("Error Filename");
+        return "";
+    }
     fmt::println(" Tracback:\nFile {}", pos.file_name);
     auto msg = fmt::format(
             " {}: {} \n\tat {}:{}",
@@ -15,7 +19,12 @@ std::string dusl::ErrorObject::generateErrString() const {
             pos.row
     );
 
-    const auto lines = split_lines(pos.code);
+    std::string code;
+    if (code == "") {
+        code = read_file(pos.file_name);
+    }
+
+    const auto lines = split_lines(code);
     auto line = lines[pos.line];
     msg += fmt::format("\n{}\n", line);
     msg += fmt::format("{: >{}}", "", pos.row);

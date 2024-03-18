@@ -53,13 +53,12 @@ dusl::FResult dusl::StringObject::hash(const dusl::Token &token) const {
     return FResult::createResult(std::make_shared<IntObject>(std::hash<std::string>{}(value), token), tok);
 }
 
-dusl::FResult dusl::StringObject::index(std::shared_ptr<ListObject> idx_args) {
+dusl::FResult dusl::StringObject::index(std::shared_ptr<ListObject> idx_args, const std::optional<Token> token) {
     if (idx_args->items.size() != 1) {
         return FResult::createError(
             IndexError,
             fmt::format("list index takes 1 argument but {} were given", idx_args->items.size()),
-            tok
-        );
+            tok);
     }
 
     auto first_arg = idx_args->items[0];
@@ -69,8 +68,7 @@ dusl::FResult dusl::StringObject::index(std::shared_ptr<ListObject> idx_args) {
             return FResult::createError(
                 IndexError,
                 fmt::format("index out of range {}", intObj->value),
-                intObj->tok
-            );
+                intObj->tok);
         }
         return FResult::createResult(std::make_shared<StringObject>(value[intObj->value], tok), tok);
     } else if (auto rangeObj = dynamic_cast<RangeObject*>(first_arg.get())) {
@@ -78,8 +76,7 @@ dusl::FResult dusl::StringObject::index(std::shared_ptr<ListObject> idx_args) {
             return FResult::createError(
                 IndexError,
                 fmt::format("Index out of range {}", rangeObj->start),
-                rangeObj->tok
-            );
+                rangeObj->tok);
         }
         std::string result = value.substr(rangeObj->start, rangeObj->end - rangeObj->start + 1);
         return FResult::createResult(std::make_shared<StringObject>(result, tok), tok);
@@ -113,8 +110,7 @@ dusl::FResult dusl::StringObject::split(StringObject &str, Interpreter &visitor,
     if (res.has_value()) {
         return FResult::createError(RunTimeError,
                                     res.value(),
-                                    fn_node->tok
-        );
+                                    fn_node->tok);
     }
     auto first_arg = fn_node->args_node.args[0]->accept(visitor);
     if (first_arg.isError()) return first_arg;
@@ -159,8 +155,12 @@ void dusl::StringObject::init_functions() {
     functions["toLower"] = reinterpret_cast<PropertyFunction>(StringObject::to_lower);
     functions["toUpper"] = reinterpret_cast<PropertyFunction>(StringObject::to_upper);
     functions["isDigit"] = reinterpret_cast<PropertyFunction>(StringObject::is_digit);
+    functions["isUpper"] = reinterpret_cast<PropertyFunction>(StringObject::is_upper);
+    functions["isLower"] = reinterpret_cast<PropertyFunction>(StringObject::is_lower);
     functions["isAlpha"] = reinterpret_cast<PropertyFunction>(StringObject::is_alpha);
+    functions["getCodeAt"] = reinterpret_cast<PropertyFunction>(StringObject::get_code_at);
     functions["replace"] = reinterpret_cast<PropertyFunction>(StringObject::replace);
+    functions["join"] = reinterpret_cast<PropertyFunction>(StringObject::join);
     functions["startsWith"] = reinterpret_cast<PropertyFunction>(StringObject::starts_with);
     functions["endsWith"] = reinterpret_cast<PropertyFunction>(StringObject::ends_with);
 }
@@ -215,6 +215,100 @@ dusl::FResult dusl::StringObject::is_alpha(StringObject &str, Interpreter &visit
         }
     }
     return FResult::createResult(std::make_shared<BooleanObject>(true, str.tok), fn_node->tok);
+}
+
+dusl::FResult dusl::StringObject::is_upper(StringObject& str, Interpreter& visitor, const std::shared_ptr<FunctionCallNode>& fn_node) {
+    auto res = verifyArgsCount(fn_node->args_node.args.size(), 0, str.tok);
+    if (res.has_value()) {
+        return FResult::createError(RunTimeError, res.value(), fn_node->tok);
+    }
+    for (auto c : str.value) {
+        if (!std::isupper(c)) {
+			return FResult::createResult(std::make_shared<BooleanObject>(false, str.tok), fn_node->tok);
+		}
+    }
+    return FResult::createResult(std::make_shared<BooleanObject>(true, str.tok), fn_node->tok);
+}
+
+dusl::FResult dusl::StringObject::is_lower(StringObject& str, Interpreter& visitor, const std::shared_ptr<FunctionCallNode>& fn_node) {
+    auto res = verifyArgsCount(fn_node->args_node.args.size(), 0, str.tok);
+    if (res.has_value()) {
+        return FResult::createError(RunTimeError, res.value(), fn_node->tok);
+    }
+    for (auto c : str.value) {
+        if (!std::islower(c)) {
+            return FResult::createResult(std::make_shared<BooleanObject>(false, str.tok), fn_node->tok);
+        }
+    }
+    return FResult::createResult(std::make_shared<BooleanObject>(true, str.tok), fn_node->tok);
+}
+
+dusl::FResult dusl::StringObject::get_code_at(StringObject& str, Interpreter& visitor, const std::shared_ptr<FunctionCallNode>& fn_node) {
+    auto res = verifyArgsCount(fn_node->args_node.args.size(), 1, str.tok);
+    if (res.has_value()) {
+        return FResult::createError(RunTimeError, res.value(), fn_node->tok);
+    }
+
+	auto& index = fn_node->args_node.args[0]->accept(visitor);
+
+    // get index as ascii
+	if (auto intObj = std::dynamic_pointer_cast<IntObject>(index.result)) {
+        if (intObj->value > str.value.length()) {
+            return FResult::createError(
+                IndexError,
+                fmt::format("{} index out of range {}", str.getTypeString(), intObj->value),
+                str.tok
+            );
+        }
+        int val = static_cast<int>(str.value[intObj->value]);
+		return FResult::createResult(std::make_shared<IntObject>(val, str.tok), fn_node->tok);
+	}
+
+	return FResult::createError(
+        TypeError, 
+        "get_char_code expects an int as an argument", 
+        fn_node->tok
+    );
+
+}
+
+dusl::FResult dusl::StringObject::join(dusl::StringObject& str, dusl::Interpreter& visitor, const std::shared_ptr<FunctionCallNode>& fn_node) {
+	auto res = verifyArgsCount(fn_node->args_node.args.size(), 1, str.tok);
+	if (res.has_value()) {
+		return FResult::createError(RunTimeError, res.value(), fn_node->tok);
+	}
+
+	auto& list_res = fn_node->args_node.args[0]->accept(visitor);
+    if (list_res.isError()) return list_res;
+
+	if (auto listObj = dynamic_cast<ListObject*>(list_res.result.get())) {
+		std::string result = "";
+        int index = 0;
+		for (auto& item : listObj->items) {
+			if (auto strObj = dynamic_cast<StringObject*>(item.get())) {
+				if (index != 0) {
+					result += str.value;
+				}
+				result += strObj->value;
+            }
+            else {
+				return FResult::createError(
+					TypeError,
+					fmt::format("list item {} expected string but got {}", index, item->getTypeString()),
+					str.tok
+				);
+            }
+            
+            ++index;
+		}
+		return FResult::createResult(std::make_shared<StringObject>(result, str.tok), fn_node->tok);
+	}
+
+	return FResult::createError(
+		TypeError,
+		"join expects a list as an argument",
+		fn_node->tok
+	);
 }
 
 dusl::FResult dusl::StringObject::replace(dusl::StringObject &str, dusl::Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node) {

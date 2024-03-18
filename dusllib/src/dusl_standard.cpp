@@ -21,6 +21,7 @@ bool dusl::loadSTL(dusl::Interpreter &visitor) {
     dusl::createFunction(visitor, "getElapsedTimeMS", &get_elapsed_time_ms);
     dusl::createFunction(visitor, "getElapsedTimeNS", &get_elapsed_time_ns);
     dusl::createFunction(visitor, "fillList", &fill_list);
+    dusl::createFunction(visitor, "fromCharCode", &from_char_code);
     dusl::createFunction(visitor, "hash", &hash_object);
     dusl::createFunction(visitor, "rnd", &random_int);
     dusl::createFunction(visitor, "round", &math_round);
@@ -253,8 +254,7 @@ dusl::FResult dusl::math_round(dusl::Interpreter &visitor, ArgumentObject &args_
     return FResult::createError(
         RunTimeError,
         "round: argument must be an integer or a float",
-        tok
-    );
+        tok);
 }
 
 dusl::FResult dusl::math_floor(dusl::Interpreter &visitor, ArgumentObject &args_node, const dusl::Token &tok) {
@@ -274,7 +274,38 @@ dusl::FResult dusl::math_floor(dusl::Interpreter &visitor, ArgumentObject &args_
     return FResult::createError(
         RunTimeError,
         "floor: argument must be an integer or a float",
+        tok);
+}
+
+dusl::FResult dusl::from_char_code(dusl::Interpreter& visitor, ArgumentObject& args_node, const dusl::Token& tok) {
+    /// fromCharCode(value)
+	if (const auto r = verifyArgsCount(args_node.args.size(), 1, tok); r.has_value()) {
+		return FResult::createError(RunTimeError, r.value(), tok);
+	}
+
+	if (auto intVal = std::dynamic_pointer_cast<dusl::IntObject>(args_node.args[0])) {
+        auto res = std::string();
+		res = char(intVal->value);
+		return FResult::createResult(std::make_shared<dusl::StringObject>(res, tok), tok);
+    } else if (auto listVal = std::dynamic_pointer_cast<dusl::ListObject>(args_node.args[0])) {
+	    auto res = std::string();
+	    for (auto& item : listVal->items) {
+		    if (auto intVal = std::dynamic_pointer_cast<dusl::IntObject>(item)) {
+			    res += char(intVal->value);
+            }
+            else {
+			    return FResult::createError(RunTimeError, 
+                    fmt::format("fromCharCode: argument must be an integer or a list of integers, got item {}", item->getTypeString()),
+                    tok
+                );
+            }
+	    }
+
+	    return FResult::createResult(std::make_shared<dusl::StringObject>(res, tok), tok);
+    }
+
+    return FResult::createError(RunTimeError,
+        fmt::format("fromCharCode: argument must be an integer or a list of integers, got {}", args_node.args[0]->getTypeString()),
         tok
     );
 }
-

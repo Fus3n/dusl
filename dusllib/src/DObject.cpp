@@ -22,8 +22,7 @@ dusl::FResult dusl::NumberError::throwZeroDivisionError(const Token &leftToken, 
     return FResult::createError(
         ZeroDivisionError,
         fmt::format("division by zero {} with {}", tokToString(leftToken.tok), tokToString(other->tok.tok)),
-        leftToken
-    );
+        leftToken);
 }
 
 std::string dusl::BuiltinFunctionObject::toString() const {
@@ -55,8 +54,7 @@ dusl::FResult
 dusl::FunctionObject::call(Interpreter &visitor, ArgumentObject &arguments, const Token &token) {
     auto arg_total = args.size();
     auto given_total = arguments.args.size() + arguments.default_args.size();
-    auto max_expected_args = std::max(arg_total, given_total);
-
+    auto max_expected_args = max(arg_total, given_total);
 
     if (given_total > max_expected_args) {
         return FResult::createError(NameError, fmt::format("{} takes at most {} arguments but {} were given", func_name, max_expected_args, given_total), tok);

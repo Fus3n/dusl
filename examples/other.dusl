@@ -1,1 +1,141 @@
-println("Hell world")
+# fn reverseString(str) {
+#     reversedStr = ""
+#     i = str.size - 1
+#     while i >= 0 {
+#         reversedStr = reversedStr + str.get(i)
+#         i = i - 1
+#     }
+#     return reversedStr
+# }
+
+# fn isPalindrome(str) {
+#     reversed = reverseStr(str)
+#     return str == reversed
+# }
+
+# items = [3, 5, 2, 18, 10]
+
+# # fn bubbleSort(list) {
+# #     n = list.size
+# #     for i from 0..(n - 1) {
+# #         for j from 0..(n - i - 1) {
+# #             if list[j] > list[j + 1] {
+# #                 temp = list[j]
+# #                 res = list[j + 1]
+# #                 list[j] = res # TODO: fix index_assign doesnt work for direct assignment ex: "list[j] = list[j + 1]" this fails
+# #                 list[j + 1] = temp
+# #             }
+# #         }
+# #     }
+# #     return list
+# # }
+
+fn bubbleSort(list) {
+    n = list.size
+    swapped = true
+    while swapped {
+        swapped = false
+        i = 0
+        while i < n - 1 {
+            if (list.get(i) > list.get(i + 1)) {
+                temp = list.get(i)
+                list.set(i, list.get(i + 1))
+                list.set(i + 1, temp)
+                swapped = true
+            }
+            i = i + 1
+        }
+    }
+}
+
+# # println("Previous:", items)
+# # result = bubbleSort(items)
+# # println("Result:", items)
+
+# fn power(base, exponent) {
+#     if exponent == 0 {
+#         return 1
+#     }
+#     if exponent % 2 == 0 {
+#         return power(base * base, exponent / 2)
+#     } else {
+#         return base * power(base, exponent - 1)
+#     }
+# }
+
+# fn flatten(list) {
+#     result = []
+#     for item from list {
+#         if type(item) == "list" {
+#             result = result + flatten(item)
+#         } else {
+#             result.push(item)
+#         }
+#     }
+#     return result
+# }
+
+# # test_list = [[1,2,3], [4,5,6], [7,8,9]]
+
+# # r = flatten(test_list)
+# # println(r)
+
+fn binarySearch(list, target) {
+    # Sort the list first
+    bubbleSort(list) 
+
+    low = 0
+    high = list.size - 1
+    while low <= high {
+        mid = floor((low + high) / 2)
+        if (list.get(mid) == target) {
+            return mid
+        }
+        elseif (list.get(mid) < target) {
+            low = mid + 1
+        }
+        else {
+            high = mid - 1
+        }
+    }
+    return -1
+}
+
+
+fn caesarCipher(str, shift) {
+    result = []
+    for char from str {
+        if char.isAlpha() {
+            base = char.toLower().getCodeAt(0) - 97
+            newBase = (base + shift) % 26
+            newChar = newBase + 97
+            if char.isUpper() {
+                newChar = newChar + 'A'.getCodeAt(0) - 'a'.getCodeAt(0)
+            }
+            result.push(newChar)
+        } else {
+            result.push(char)
+        }
+    }
+
+    result_str = ""
+    for char from result {
+        if (type(char) == "int") {
+            result_str = result_str + fromCharCode(char)
+        } else {
+            result_str = result_str + char
+        }
+    }
+
+    return result_str
+}
+
+plaintext = "Hello, World!"
+ciphertext = caesarCipher(plaintext, 3)
+println(ciphertext)
+
+# for p from plaintext {
+#     print(p.getCodeAt(0), " ")
+# }
+# println("")
+

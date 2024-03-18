@@ -7,7 +7,7 @@ void dusl::Interpreter::setContext(dusl::Context _ctx) {
 }
 
 dusl::FResult dusl::Interpreter::visit(ProgramNode &node) {
-    FResult val;
+    FResult val = FResult::createResult(std::make_shared<NoneObject>(node.tok), node.tok);
     for (auto& statement: node.statements) {
         val = statement->accept(*this);
         if (val.isError() || val.result->isReturn())
@@ -17,7 +17,7 @@ dusl::FResult dusl::Interpreter::visit(ProgramNode &node) {
 }
 
 dusl::FResult dusl::Interpreter::visit(BlockNode &node) {
-    FResult val;
+    FResult val = FResult::createResult(std::make_shared<NoneObject>(node.tok), node.tok);
     for (auto& statement: node.statements) {
         val = statement->accept(*this);
         if (val.isError() || val.result->isReturn() || val.result->isBreak())

@@ -4,7 +4,8 @@
 #include <vector>
 
 namespace dusl {
-    static const std::string DUSL_STD_PATH = "../dusl_std"; // TODO: update it
+    /// DEVELOPMENT ONLY PATH, Visual Studio
+    static const std::string DUSL_STD_PATH = "../../../dusl_std";
 
     [[maybe_unused]] bool loadSTL(dusl::Interpreter &visitor);
 
@@ -23,6 +24,7 @@ namespace dusl {
     dusl::FResult error_dusl(dusl::Interpreter &visitor, ArgumentObject &args_node, const dusl::Token& tok);
     dusl::FResult math_round(dusl::Interpreter &visitor, ArgumentObject &args_node, const dusl::Token& tok);
     dusl::FResult math_floor(dusl::Interpreter &visitor, ArgumentObject &args_node, const dusl::Token& tok);
+    dusl::FResult from_char_code(dusl::Interpreter& visitor, ArgumentObject& args_node, const dusl::Token& tok);
 
 
 }

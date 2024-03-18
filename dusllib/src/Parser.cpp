@@ -25,7 +25,7 @@ void dusl::Parser::eat(TokenType tt) {
     }
 }
 
-dusl::ProgramNode dusl::Parser::parse(std::string_view code, std::string_view file_name, const std::vector<Token> &tokens) {
+dusl::ProgramNode dusl::Parser::parse(const std::string& code, const std::string& file_name, const std::vector<Token> &tokens) {
     m_toks = tokens;
     // move the cursor to the first token
     m_token = m_toks[m_tok_idx];
@@ -66,7 +66,6 @@ dusl::DataNode * dusl::Parser::statement() {
             return new BreakNode(break_tok);
         }
         else {
-            m_token.pos.setCodeAndFile(m_code, m_file_name);
             DError(UnimplementedError,
                    fmt::format("Keyword \"{}\", is not yet supported", m_token.value),
                    m_token.pos
@@ -262,7 +261,6 @@ dusl::DataNode * dusl::Parser::factor() {
         return funcDef();
     }
 
-    m_token.pos.setCodeAndFile(m_code, m_file_name);
     DError(SyntaxError,
            fmt::format("Unexpected expression \"{}\"", m_token.toString()),
            m_token.pos
@@ -411,7 +409,6 @@ dusl::DataNode* dusl::Parser::parseStructBody() {
         if (peeked.has_value() && peeked.value().cmp(dusl::Equal)) {
             return parseAssignment();
         } else {
-            m_token.pos.setCodeAndFile(m_code, m_file_name);
             DError(SyntaxError,
                    fmt::format("Invalid Syntax: {} not allowed inside struct body", dusl::tokToString(m_token.tok)),
                    m_token.pos
@@ -421,7 +418,6 @@ dusl::DataNode* dusl::Parser::parseStructBody() {
         return funcDef();
     }
 
-    m_token.pos.setCodeAndFile(m_code, m_file_name);
     DError(UnimplementedError,
            fmt::format("Keyword \"{}\" is not yet supported", m_token.value),
            m_token.pos

@@ -55,6 +55,8 @@ namespace dusl {
 
         Token(std::string val, TokenType _tok, const Position& _pos): value(std::move(val)), tok(_tok), pos(_pos) {}
         explicit Token() : tok(TokenType::Eof) {}
+		// a copy constructor
+		Token(const Token& _tok) : value(_tok.value), tok(_tok.tok), pos(_tok.pos) {}
 
         [[nodiscard]] bool cmp(TokenType t) const;
         [[nodiscard]] bool cmp(TokenType t, const std::string_view&  val) const;
@@ -68,7 +70,7 @@ namespace dusl {
 
 		Lexer();
 		void nextTok();
-        std::vector<Token> tokenize(std::string_view code, std::string_view _file_name);
+        std::vector<Token> tokenize(const std::string& _file_name, const std::string& code, const std::string& repl_code = "");
 		void parseAndPushString();
 		void parseAndPushNumber();
 		void parseAndPushIdentifier();

@@ -33,8 +33,6 @@ println(person['name'])
 println(person['age'])
 println(person['role'])
 
-
-
 \ Factorial \
 fn factorial(n) {
     if n == 0 {

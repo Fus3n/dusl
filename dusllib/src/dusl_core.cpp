@@ -48,13 +48,12 @@ bool dusl::runSingleFile(const std::string& file_name, dusl::Interpreter &visito
         return false;
     }
 
-    auto tokens = lexer.tokenize(code, file_name);
+    auto tokens = lexer.tokenize(file_name, code);
     auto ast = parser.parse(code, file_name, tokens);
 
     const auto jsn = ast.toJson().dump(2);
 //    fmt::println("{}", jsn);
     dusl::write_file("ast.json", jsn);
-//    return 0;
 
     auto file_context_name = path.stem().string();
     visitor.ctx.setBaseCtxName(file_context_name);
