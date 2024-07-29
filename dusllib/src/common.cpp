@@ -1,6 +1,7 @@
 #include <fstream>
 #include <dusl/utils/common.h>
 #include <filesystem>
+#include <fmt/core.h>
 
 std::vector<std::string_view> dusl::split_lines(const std::string_view str) {
     std::vector<std::string_view> lines;

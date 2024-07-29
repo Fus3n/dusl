@@ -37,10 +37,10 @@ fn bubbleSort(list) {
         swapped = false
         i = 0
         while i < n - 1 {
-            if (list.get(i) > list.get(i + 1)) {
-                temp = list.get(i)
-                list.set(i, list.get(i + 1))
-                list.set(i + 1, temp)
+            if (list[i] > list[i + 1]) {
+                temp = list[i]
+                list[i] = list[i + 1]
+                list[i + 1] =  temp
                 swapped = true
             }
             i = i + 1
@@ -82,16 +82,16 @@ fn bubbleSort(list) {
 
 fn binarySearch(list, target) {
     # Sort the list first
-    bubbleSort(list) 
+    bubbleSort(list)
 
     low = 0
     high = list.size - 1
     while low <= high {
         mid = floor((low + high) / 2)
-        if (list.get(mid) == target) {
+        if (list[mid] == target) {
             return mid
         }
-        elseif (list.get(mid) < target) {
+        elseif (list[mid] < target) {
             low = mid + 1
         }
         else {
@@ -102,40 +102,42 @@ fn binarySearch(list, target) {
 }
 
 
-fn caesarCipher(str, shift) {
-    result = []
-    for char from str {
-        if char.isAlpha() {
-            base = char.toLower().getCodeAt(0) - 97
-            newBase = (base + shift) % 26
-            newChar = newBase + 97
-            if char.isUpper() {
-                newChar = newChar + 'A'.getCodeAt(0) - 'a'.getCodeAt(0)
-            }
-            result.push(newChar)
-        } else {
-            result.push(char)
-        }
+#li = [4, 2, 1, 5, 6]
+#bubbleSort(li)
+#res = binarySearch(li, 5)
+#println(res)
+#
+
+fn find_all_quoted(text) {
+    finds = []
+    has = true
+    window = text
+    while has and window.size > 0 {
+        collected = ""
+        first = window.find("\"")
+        if first != -1 {
+            window = window[first+1..(window.size-1)]
+            second = window.find("\"")
+            if second != -1 {
+                idx = second - 1
+                if idx > 0 {
+                    collected = window[0..idx]
+                    finds.push(collected)
+                }
+
+                window = window[second+1..(window.size-1)]
+            } else { has = false }
+        } else { has = false }
     }
 
-    result_str = ""
-    for char from result {
-        if (type(char) == "int") {
-            result_str = result_str + fromCharCode(char)
-        } else {
-            result_str = result_str + char
-        }
-    }
-
-    return result_str
+    return finds
 }
 
-plaintext = "Hello, World!"
-ciphertext = caesarCipher(plaintext, 3)
-println(ciphertext)
-
-# for p from plaintext {
-#     print(p.getCodeAt(0), " ")
-# }
-# println("")
-
+# experimental File object
+#f1 = File("../out/build/x64-Debug/cmake_install.cmake")
+#contents = f1.read()
+#finds = find_all_quoted(contents)
+#println(finds.size)
+#for i from finds {
+#    println(i)
+#}

@@ -8,7 +8,17 @@
 
 /// Add a function to the interpreter
 namespace dusl {
-    void createFunction(dusl::Interpreter &visitor, std::string name, dusl::BuiltinFunctionObject::FunctionPointer func);
+
+    void createFunction(dusl::Interpreter &visitor, std::string name, dusl::BuiltinFunctionObject::FunctionPointer func, const std::string& doc_str="");
+
+    //template <typename T>
+    std::shared_ptr<StructProxyObject> createStruct(
+        dusl::Interpreter &visitor, 
+        const std::string& cls_name,
+        dusl::CreatorFunction& func,
+        const std::string& doc_str=""
+    );
+
     [[maybe_unused]] std::optional<std::string> verifyArgsCount(size_t current_count, size_t expected_count, const dusl::Token& tok, bool fixed_args= true);
     [[maybe_unused]] bool runSingleFile(const std::string& file_name, dusl::Interpreter &visitor);
 

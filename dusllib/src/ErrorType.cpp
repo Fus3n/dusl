@@ -16,7 +16,8 @@ std::string dusl::DError::generateErrString() {
             m_pos.row
     );
 
-    auto& code = read_file(m_pos.file_name);
+    // TODO: might need to make code a ref
+    std::string code = read_file(m_pos.file_name);
     auto lines = split_lines(code);
     auto& line = lines[m_pos.line];
 

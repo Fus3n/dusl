@@ -4,8 +4,21 @@
 #include <dusl/Lexer.hpp>
 #include <dusl/ErrorType.hpp>
 #include <dusl/LanguageManager.hpp>
+#include <unordered_map>
 
 #include <algorithm>
+
+std::unordered_map<char, char> slashed_map {
+        {'n', '\n'},
+        {'t', '\t'},
+        {'r', '\r'},
+        {'b', '\b'},
+        {'f', '\f'},
+        {'a', '\a'},
+        {'\\', '\\'},
+        {'"', '"'},
+        {'\'', '\''}
+};
 
 std::string dusl::tokToString(const TokenType tok) {
 	switch (tok) {
@@ -240,7 +253,7 @@ std::vector<dusl::Token> dusl::Lexer::tokenize(const std::string& _file_name, co
                     parseAndPushString();
                 else if (isdigit(m_tok))
                     parseAndPushNumber();
-                else if (isalpha(m_tok))
+                else if (isalpha(m_tok) || m_tok == '_')
                     parseAndPushIdentifier();
                 else {
                     DError(SyntaxError, fmt::format("Unknown character '{}'", m_tok), m_pos).Throw();
@@ -256,11 +269,21 @@ void dusl::Lexer::parseAndPushString() {
 	const char quote = m_tok;
     auto pos = m_pos.copy();
 	nextTok();
-
 	std::string collected;
-
 	while (!isEof() && m_tok != quote) {
-		// TODO: allow backslashing character
+        if (m_tok == '\\') {
+            nextTok();
+            try {
+                char value = slashed_map.at(m_tok);
+                collected += value;
+                nextTok();
+                continue;
+            } catch (const std::out_of_range& e) {
+                DError(SyntaxError, "unknown escape character", m_pos)
+                        .Throw();
+            }
+        }
+
 		collected += m_tok;
 		nextTok();
 	}

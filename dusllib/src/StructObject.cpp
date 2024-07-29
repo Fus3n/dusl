@@ -1,6 +1,6 @@
 #include "DObject.hpp"
 
-// MAIN STRUCt
+// MAIN STRUCT
 std::string dusl::StructObject::toString() const {
     return fmt::format("struct<{}>", name);
 }
@@ -21,7 +21,6 @@ dusl::FResult dusl::StructObject::call(Interpreter &visitor, ArgumentObject &arg
             ins_props[fst] = snd;
         }
     }
-
 
     const auto inst = new StructInstanceObject(name, ins_props, tok);
     return FResult::createResult(std::shared_ptr<StructInstanceObject>(inst), token);

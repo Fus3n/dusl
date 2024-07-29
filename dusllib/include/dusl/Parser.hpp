@@ -42,7 +42,7 @@ namespace dusl {
         // helpers
         DataNode * parseAssignment();
         DataNode * parseStructBody();
-        dusl::ArgumentNode parseFuncArgument(bool is_define=false);
+        dusl::ArgumentNode parseFuncArgument(bool is_define=false, Token _tok = Token());
         ListNode * parseList();
         DataNode * parseDict();
 

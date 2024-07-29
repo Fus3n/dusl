@@ -57,6 +57,10 @@ dusl::Object::modulo_by(const std::shared_ptr<Object> &other, const Token &token
 }
 
 dusl::FResult dusl::Object::getProperty(const std::string& name, const Token& token) {
+    if (name == "_doc") {
+        return FResult::createResult(std::make_shared<dusl::StringObject>(doc_str, tok), tok);
+    }
+
     return FResult::createError(
         NameError,
         fmt::format("{} does not contain property {}", getTypeString(), name),

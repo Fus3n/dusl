@@ -10,7 +10,7 @@ All the syntax highlighting is from python so might look weird.
 # builtin binary operators
 +, -, *, /
 # logical operators
-and, or, not
+and, or, not # dusl does not support || or && or ! for these operators, only these keywords exists
 # comparission
 ==, >, <, >=, <=
 ```
@@ -23,7 +23,7 @@ println("hello world") # -> none, prints given arguments with a new line
 print("Hello world") # -> none, prints given arguments without a new line
 readLine() # -> string, takes no argument, blocks program in terminal and takes user input untill enter is pressed and returns it
 type(object) # -> type of object as a string
-fillList(list, count) # -> none, fill the list with 0's inplace
+fillList(list, count) # -> none, really fast way to fill the list with 0's inplace
 getTime() # -> int, current time in ms
 getElapsedTimeMS(start ms, end ms) # -> int, time in ms in integer,
 hash(object) # -> integer, get hash for supported types
@@ -71,6 +71,9 @@ string.isDigit() # -> bool, check if digit or not
 string.isAlpha() # -> bool, check if alpha or not
 string.getCodeAt(index) -> int, returns ascii code at index
 string.join(list of string) -> string, joins the elements with string value as delimeter
+string.replace(from_str, to_str) # replaces a string with to_str and returns new string
+string.startsWith(str) # checks if the string starts with given str, returns boolean
+string.endsWith(str) # checks if the string ends with given str, returns boolean
 string[index] # string, get string value at index
 # these are all the string functions and props available for now
 ```
@@ -116,7 +119,7 @@ fn add(a, b) {
 }
 
 # or make annonymous functions like
-fn sub = fn(a, b) {
+sub = fn(a, b) {
     return a - b
 }
 # Note: All functions return the last element by default same for annonymous functions
@@ -168,6 +171,17 @@ println(mod["results"][0])
 mod['say']("Hello, world") # Hello, world
 ```
 
+### File handling
+File handling is not that mature yet in DUSL, it's very limited, here are the few features
+
+```py
+# open a file
+file = File("./test.txt")
+println(file.size()) # returns file size in bytes
+println(file.exists()) # returns if file exists or not with boolean
+contents = file.read() # returns file contents as string
+```
+
 ### Libraries/importing/modules
 ```py
 # And finally for importing, theres no standard libary for now but the current "stanard lib" can be imported like:
@@ -177,7 +191,6 @@ import [ joinStr ] from "std:string"
 
 # same for normal imports, for example if math.flin is a file that is created in relative path and has "add" and "sub" method deifned, we can do:
 import [add, sub] from "./math" # or you can do with the extension too like "./math.flin"
-
 
 # ONLY std for now is std:string which only has ONE function and its called joinStr and can be used like:
 import "std:string"
@@ -200,6 +213,7 @@ fn fizzBuzz(i) {
 
 ### Some random program
 ```py
+# fizzbuzz
 totalCount = 1000
 v = []
 fillList(v, totalCount)
@@ -213,4 +227,72 @@ end = getTime()
 elapsed = getElapsedTimeMS(start, end)
 println(v)
 println(elapsed)
+
+# in-place bubblesort
+fn bubbleSort(list) {
+    n = list.size
+    swapped = true
+    while swapped {
+        swapped = false
+        i = 0
+        while i < n - 1 {
+            if (list[i] > list[i + 1]) {
+                temp = list[i]
+                list[i] = (list[i + 1]) # right side needs to be wrapped in brackets cuz of a bug currently
+                list[i + 1] =  temp
+                swapped = true
+            }
+            i = i + 1
+        }
+    }
+}
+# binary search (expects a sorted list)
+fn binarySearch(list, target) {
+    # Sort the list first
+    bubbleSort(list)
+    
+    low = 0
+    high = list.size - 1
+    while low <= high {
+        mid = floor((low + high) / 2)
+        if (list[mid] == target) {
+            return mid
+        }
+        elseif (list[mid] < target) {
+            low = mid + 1
+        }
+        else {
+            high = mid - 1
+        }
+    }
+    return -1
+}
+# Caesar cipher
+fn caesarCipher(str, shift) {
+    result = []
+    for char from str {
+        if char.isAlpha() {
+            base = char.toLower().getCodeAt(0) - 97
+            newBase = (base + shift) % 26
+            newChar = newBase + 97
+            if char.isUpper() {
+                newChar = newChar + 'A'.getCodeAt(0) - 'a'.getCodeAt(0)
+            }
+            result.push(newChar)
+        } else {
+            result.push(char)
+        }
+    }
+
+    result_str = ""
+    for char from result {
+        if (type(char) == "int") {
+            result_str = result_str + fromCharCode(char)
+        } else {
+            result_str = result_str + char
+        }
+    }
+
+    return result_str
+}
 ```

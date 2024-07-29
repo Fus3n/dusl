@@ -6,15 +6,35 @@
 #include <memory>
 #include <utility>
 #include <filesystem>
+#include <DObject.hpp>
 
 
-void dusl::createFunction(dusl::Interpreter &visitor, std::string name, dusl::BuiltinFunctionObject::FunctionPointer func) {
+void dusl::createFunction(dusl::Interpreter &visitor, std::string name, dusl::BuiltinFunctionObject::FunctionPointer func, const std::string& doc_str) {
     dusl::Token tok;
     tok.value = std::move(name);
     visitor.ctx.currentSymbol().setValue(
-            tok.value, std::make_shared<dusl::BuiltinFunctionObject>(tok, func)
+            tok.value, std::make_shared<dusl::BuiltinFunctionObject>(tok, func, doc_str)
     );
 }
+
+//template <typename T>
+std::shared_ptr<dusl::StructProxyObject> dusl::createStruct(
+    dusl::Interpreter& visitor,
+    const std::string& cls_name,
+    dusl::CreatorFunction& init_func,
+    const std::string& doc_str
+) {
+    dusl::Token tok;
+    tok.value = cls_name;
+
+    auto proxy = std::make_shared<dusl::StructProxyObject>(cls_name, init_func, tok, doc_str);
+    visitor.ctx.currentSymbol().setValue(
+            tok.value, proxy
+    );
+
+	return proxy;
+}
+
 
 std::optional<std::string> dusl::verifyArgsCount(size_t current_count, size_t expected_count, const dusl::Token& tok, bool fixed_args) {
     if (fixed_args) {
@@ -133,7 +153,7 @@ dusl::BooleanObject dusl::createBool(bool value, dusl::Token tok) {
 
         // RUN
         const std::string file_name = "<REPL>";
-        auto tokens = lexer.tokenize(code, file_name);
+        auto tokens = lexer.tokenize(file_name, code);
         auto ast = parser.parse(code, file_name, tokens);
 
         try {

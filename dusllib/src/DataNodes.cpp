@@ -978,6 +978,12 @@ dusl::FResult dusl::ImportNode::accept(dusl::Interpreter &visitor) {
 
     std::filesystem::path path;
 
+    // EXPERIMENTAL: import standard from CPP side
+//    if (module_path == "std:file") {
+//        auto file_struct = dusl::loadObjects(visitor);
+//        return FResult::createResult(file_struct, tok);
+//    }
+
     // check if string starts with "std:"
     if (module_path.size() > 4 && module_path.substr(0, 4) == "std:") {
         auto base = module_path.substr(4);

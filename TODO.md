@@ -1,5 +1,10 @@
 <h1 style="text-align: center">Language Roadmap</h1>
 
+### Bugs
+- Fix `not` operator not working with member access
+- Fix `not` operator not working with comparision operators
+- ~~Fix `li[index] = li2[index]` just putting the whole list in the first list, parsing order error.~~
+- Add a `get_attr` kind of function to all object that allows retrieving of specific property without using member access operator (.) 
 
 ### <p style="text-align: center">Things To Add (language features)</p>
 - ~~list support~~
@@ -15,13 +20,14 @@
 - ~~add anonymous functions~~
 - ~~make builtin type's functions into c++ static functions~~
 - ~~while loops~~
-- ~~add breaking inside of loops~~
-- optional arguments in functions
+- ~~add breaking out of loops~~
+- optional arguments in functions (WIP)
 - unary operations (WIP)
-- struct functions
+- ~~struct functions~~
 - ~~struct defining functionality~~
 - struct access functionality
 - ~~Make every object return an error object instead of exiting the program~~
+- Be able to take point to a struct function out and save in a variable
 - ErrorObject that tracks and prints error's
 - Present each file as a module
 - Separate the global context

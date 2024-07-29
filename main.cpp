@@ -1,19 +1,12 @@
 #include <iostream>
 #include <string>
 #include <fstream>
-#include <filesystem>
 #include <dusl/utils/dusl_core.hpp>
 #include <dusl/Context.hpp>
-#include <dusl/SymbolTable.hpp>
 #include <dusl/utils/dusl_standard.hpp>
-
-namespace fs = std::filesystem;
 
 int main(int argc, char* argv[])
 {
-    // TODO: LATEST: fix json output not having expected ret
-    // TODO: fix "not" operator not workig wiht memberacess
-
     if (argc < 2) {
         std::cerr << "Usage: dusl [file]" << std::endl;
         return 1;
@@ -26,6 +19,7 @@ int main(int argc, char* argv[])
     global_context.enterScope();
     visitor.setContext(global_context);
     dusl::loadSTL(visitor);
+    auto items = dusl::loadObjects(visitor); // keeping list of object so they dont die and get deleted
 
     bool success = dusl::runSingleFile(file_name, visitor);
 //    dusl::runRepl(visitor);

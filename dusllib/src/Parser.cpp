@@ -207,7 +207,7 @@ dusl::DataNode * dusl::Parser::postExpr() {
 
             if (m_token.cmp(TokenType::Equal)) {
                 eat(Equal);
-                auto right = factor(); // TODO: possibly needs to change to "expression"
+                auto right = expression(); // TODO: possibly needs to change to "expression"
                 left = new IndexAssignNode(left, right, indexArgs, tok);
             } else {
                 left = new IndexNode(left, indexArgs, tok);
@@ -280,7 +280,7 @@ dusl::DataNode * dusl::Parser::bracketExpr() {
 dusl::DataNode * dusl::Parser::funcCall() {
     auto func_name = m_token;
     eat(Ident);
-    auto arguments = parseFuncArgument(false);
+    auto arguments = parseFuncArgument(false, func_name);
     return new FunctionCallNode(func_name, arguments);
 }
 
@@ -302,8 +302,12 @@ dusl::DataNode * dusl::Parser::funcDef() {
     return new FunctionDefNode(func_name, arguments, block, tok, is_anon);
 }
 
-dusl::ArgumentNode dusl::Parser::parseFuncArgument(bool is_define) {
-    auto tok = m_token;
+dusl::ArgumentNode dusl::Parser::parseFuncArgument(bool is_define, Token _tok) {
+    Token tok = m_token;
+    if (_tok.tok != TokenType::Eof) {
+        tok = _tok;
+    }
+
     std::vector<std::shared_ptr<DataNode>> args;
     std::unordered_map<std::string, std::shared_ptr<DataNode>> default_args;
 

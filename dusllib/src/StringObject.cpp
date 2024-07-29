@@ -163,6 +163,7 @@ void dusl::StringObject::init_functions() {
     functions["join"] = reinterpret_cast<PropertyFunction>(StringObject::join);
     functions["startsWith"] = reinterpret_cast<PropertyFunction>(StringObject::starts_with);
     functions["endsWith"] = reinterpret_cast<PropertyFunction>(StringObject::ends_with);
+    functions["find"] = reinterpret_cast<PropertyFunction>(StringObject::find);
 }
 std::string toLowerStr(std::string& s) {
     for(char &c : s)
@@ -249,7 +250,8 @@ dusl::FResult dusl::StringObject::get_code_at(StringObject& str, Interpreter& vi
         return FResult::createError(RunTimeError, res.value(), fn_node->tok);
     }
 
-	auto& index = fn_node->args_node.args[0]->accept(visitor);
+    // TODO: might need to make index a ref: &index
+	auto index = fn_node->args_node.args[0]->accept(visitor);
 
     // get index as ascii
 	if (auto intObj = std::dynamic_pointer_cast<IntObject>(index.result)) {
@@ -278,7 +280,7 @@ dusl::FResult dusl::StringObject::join(dusl::StringObject& str, dusl::Interprete
 		return FResult::createError(RunTimeError, res.value(), fn_node->tok);
 	}
 
-	auto& list_res = fn_node->args_node.args[0]->accept(visitor);
+	auto list_res = fn_node->args_node.args[0]->accept(visitor);
     if (list_res.isError()) return list_res;
 
 	if (auto listObj = dynamic_cast<ListObject*>(list_res.result.get())) {
@@ -381,5 +383,31 @@ dusl::FResult dusl::StringObject::ends_with(dusl::StringObject &str, dusl::Inter
     }
 
     return FResult::createError(TypeError, "endsWith expects a string", fn_node->tok);
+}
+
+dusl::FResult dusl::StringObject::find(dusl::StringObject &str, dusl::Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node) {
+    auto res = verifyArgsCount(fn_node->args_node.args.size(), 1, str.tok);
+    if (res.has_value()) {
+        return FResult::createError(RunTimeError, res.value(), fn_node->tok);
+    }
+
+    auto first_arg = fn_node->args_node.args[0]->accept(visitor);
+    if (first_arg.isError()) return first_arg;
+
+    if (auto to_find = dynamic_cast<StringObject*>(first_arg.result.get())) {
+        if (str.value.size() < to_find->value.size()) {
+            return FResult::createResult(std::make_shared<IntObject>(-1, str.tok), fn_node->tok);
+        }
+
+        size_t found_pos = str.value.find(to_find->value);
+
+        if (found_pos != std::string::npos) {
+            return FResult::createResult(std::make_shared<IntObject>(found_pos, str.tok), fn_node->tok);
+        }
+
+        return FResult::createResult(std::make_shared<IntObject>(-1, str.tok), fn_node->tok);
+    }
+
+    return FResult::createError(TypeError, "find expects a string", fn_node->tok);
 }
 

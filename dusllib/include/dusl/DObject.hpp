@@ -10,6 +10,7 @@
 #include <windows.h>
 #include "ErrorType.hpp"
 #include "fmt/core.h"
+#include <tuple>
 
 namespace dusl {
     class Interpreter;
@@ -38,6 +39,7 @@ namespace dusl {
         bool is_error = false;
     };
 
+
     // Base class for the objects that can be returned from visit functions
     class Object {
     public:
@@ -46,7 +48,10 @@ namespace dusl {
         std::unordered_map<std::string, PropertyFunction> functions;
 
         Token tok;
-        explicit Object(Token tok) : tok(std::move(tok)) {}
+        std::string doc_str;
+
+        // TODO: changed Token tok > const Token& tok
+        explicit Object(const Token& tok, std::string _doc_str="") : tok(tok), doc_str(std::move(_doc_str)) {}
 
         [[nodiscard]] virtual bool isTrue() const;
         [[nodiscard]] virtual bool isReturn() const;
@@ -107,7 +112,7 @@ namespace dusl {
     public:
         std::string value;
 
-        explicit StringObject(std::basic_string<char> val, Token tok) : Object(std::move(tok)), value(std::move(val)) {
+        explicit StringObject(std::basic_string<char> val, Token tok) : Object(tok), value(std::move(val)) {
             init_functions();
         }
 
@@ -145,7 +150,7 @@ namespace dusl {
         static dusl::FResult join(StringObject& str, Interpreter& visitor, const std::shared_ptr<FunctionCallNode>& fn_node);
         static dusl::FResult starts_with(StringObject &str, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node);
         static dusl::FResult ends_with(StringObject &str, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node);
-
+        static dusl::FResult find(StringObject &str, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node);
 
     };
 
@@ -374,12 +379,13 @@ namespace dusl {
 
         FunctionPointer body_func;
 
-        BuiltinFunctionObject(Token tok, FunctionPointer body) : Object(std::move(tok)), body_func(body) {}
+        BuiltinFunctionObject(const Token& tok, FunctionPointer body, std::string _doc_str="") : Object(tok, std::move(_doc_str)), body_func(body){}
         [[nodiscard]] std::string toString() const override;
         [[nodiscard]] dusl::FResult hash(const dusl::Token &token) const override;
 
         dusl::FResult
         call(Interpreter &visitor, ArgumentObject &args_node, const Token &token) override;
+
     };
 
     class ErrorObject : public Object {
@@ -441,6 +447,78 @@ namespace dusl {
         [[nodiscard]] std::string getTypeString() const override;
         dusl::FResult getProperty(const std::string &name, const Token &tok) override;
         dusl::FResult callProperty(Interpreter &visitor, const std::shared_ptr<dusl::FunctionCallNode> fn_node) override;
+    };
+
+    // TODO: temporarily here
+    class DBaseStruct {
+    public:
+        struct StructCreationResult {
+            bool is_error = false;
+            std::shared_ptr<DBaseStruct> result;
+            std::shared_ptr<ErrorObject> err;
+
+            explicit StructCreationResult(std::shared_ptr<DBaseStruct> _result): result(std::move(_result)), is_error(false) {}
+            StructCreationResult(ErrorType err_type, std::string msg, const Token& tok): err(std::make_shared<ErrorObject>(err_type, msg, tok.pos, tok)), is_error(true) {}
+        };
+
+        DBaseStruct() = default;
+        static StructCreationResult init_(dusl::ArgumentObject& args_node);
+
+        virtual std::string getTypeString() = 0;
+
+        virtual std::string getClassName() { return className; }
+        virtual bool isTrue() { return true; };
+        virtual void setClassName(const std::string& name) { className = name; };
+    private:
+        std::string className = "DBaseStruct";
+    };
+
+
+    using ExposedFunctions = dusl::FResult(*)(std::shared_ptr<DBaseStruct>, Interpreter&,
+        const std::shared_ptr<FunctionCallNode>&);
+
+    using CreatorFunction = DBaseStruct::StructCreationResult(*)(ArgumentObject&);
+    //using CreatorFunction = std::function<std::shared_ptr<DBaseStruct>(ArgumentObject&)>;
+
+
+    class StructProxyObject : public Object {
+    public:
+        std::string cls_name;
+        // the class that has inherited DBaseStruct
+        //std::shared_ptr<DBaseStruct> cls_ref;
+
+        CreatorFunction& creator_func;
+        std::map<std::string, ExposedFunctions> exp_funcs;
+
+        StructProxyObject(std::string _cls_name, CreatorFunction& _creator_func, const Token& tok, std::string _doc_str="") : Object(tok, std::move(_doc_str)), cls_name(std::move(_cls_name)), creator_func(_creator_func) {}
+
+        [[nodiscard]] std::string toString() const override;
+        [[nodiscard]] std::string getTypeString() const override;
+
+        dusl::FResult call(Interpreter& visitor, ArgumentObject& args_node, const Token& token) override;
+
+        // takes in a static function that has the same signature as ExposedFunctions
+        void addFunc(const std::string& name, ExposedFunctions func);
+    };
+
+    class StructProxyInstanceObject : public Object {
+    public:
+        std::string cls_name;
+        // the class that has inherited DBaseStruct
+        std::shared_ptr<DBaseStruct> cls_ref;
+        std::map<std::string, ExposedFunctions> exp_funcs;
+
+        StructProxyInstanceObject(
+            std::string _cls_name, 
+            std::shared_ptr<DBaseStruct> _cls_ref, 
+			std::map<std::string, ExposedFunctions> _exp_funcs,
+            Token tok
+        ) : Object(std::move(tok)), cls_name(std::move(_cls_name)), cls_ref(std::move(_cls_ref)),   exp_funcs(std::move(_exp_funcs)) { }
+
+        [[nodiscard]] std::string toString() const override;
+        [[nodiscard]] std::string getTypeString() const override;
+        dusl::FResult callProperty(Interpreter& visitor, const std::shared_ptr<dusl::FunctionCallNode> fn_node) override;
+      
     };
 
 }
