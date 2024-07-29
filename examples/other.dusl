@@ -133,11 +133,11 @@ fn find_all_quoted(text) {
     return finds
 }
 
-# experimental File object
+## experimental File object
 #f1 = File("../out/build/x64-Debug/cmake_install.cmake")
 #contents = f1.read()
 #finds = find_all_quoted(contents)
-#println(finds.size)
+#println("Found", finds.size)
 #for i from finds {
 #    println(i)
 #}

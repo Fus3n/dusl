@@ -13,5 +13,6 @@ if(result)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
+
 target_link_libraries(dusl PUBLIC dusllib)
 target_link_libraries(dusl PUBLIC fmt)

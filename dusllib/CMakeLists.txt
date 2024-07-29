@@ -3,8 +3,6 @@ project(dusllib)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_subdirectory("../fmt-10.1.1" build)
-
 include_directories(include/dusl)
 
 add_library(dusllib STATIC
@@ -55,6 +53,8 @@ check_ipo_supported(RESULT result)
 if(result)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
+
+add_subdirectory("../external/fmt-10.1.1" build)
 
 target_include_directories(dusllib PUBLIC include)
 target_link_libraries(dusllib PUBLIC fmt)
