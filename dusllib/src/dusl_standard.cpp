@@ -34,6 +34,7 @@ bool dusl::loadSTL(dusl::Interpreter &visitor) {
     dusl::createFunction(visitor, "sleep", &time_sleep, "sleep(ms): sleep for a specific amount of time (ms)");
     dusl::createFunction(visitor, "system", &system, "system(command): run system command strings");
     dusl::createFunction(visitor, "error", &error_dusl, "error(msg): throws an error with message");
+    dusl::createFunction(visitor, "parseJSON", &parse_json, "error(msg): throws an error with message");
     dusl::createFunction(visitor, "exit", &exit_dusl, "exit(): exit dusl");
 
     return true;
@@ -161,9 +162,9 @@ dusl::fill_list(dusl::Interpreter &visitor, ArgumentObject &args_node, const dus
     if (r.has_value()) {
         return FResult::createError(RunTimeError, r.value(), tok);
     }
-    if (auto listObject = std::dynamic_pointer_cast<dusl::ListObject>(args_node.args[0])) {
+    if (const auto listObject = std::dynamic_pointer_cast<dusl::ListObject>(args_node.args[0])) {
         int64_t count = 0;
-        if (auto intObject = std::dynamic_pointer_cast<dusl::IntObject>(args_node.args[1])) {
+        if (const auto intObject = std::dynamic_pointer_cast<dusl::IntObject>(args_node.args[1])) {
             count = intObject->value;
         }
         while (listObject->items.size() < count) {
@@ -304,6 +305,23 @@ dusl::FResult dusl::time_sleep(dusl::Interpreter &visitor, ArgumentObject &args_
             RunTimeError,
             "sleep: argument must be an integer (milliseconds)",
             tok);
+}
+
+dusl::FResult dusl::parse_json(dusl::Interpreter &visitor, ArgumentObject &args_node, const dusl::Token &tok) {
+    /// parseJSON(value: str)
+    if (const auto r = verifyArgsCount(args_node.args.size(), 1, tok); r.has_value()) {
+        return FResult::createError(RunTimeError, r.value(), tok);
+    }
+
+    if (const auto strObj = std::dynamic_pointer_cast<dusl::StringObject>(args_node.args[0])) {
+        return DictionaryObject::loadJson(strObj->value, visitor, tok);
+    }
+
+    return FResult::createError(
+        RunTimeError,
+        "parseJson: only accepts single string argument",
+        tok
+    );
 }
 
 dusl::FResult dusl::from_char_code(dusl::Interpreter& visitor, ArgumentObject& args_node, const dusl::Token& tok) {

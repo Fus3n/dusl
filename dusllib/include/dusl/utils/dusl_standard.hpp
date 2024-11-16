@@ -5,7 +5,7 @@
 
 namespace dusl {
     /// DEVELOPMENT ONLY PATH, Visual Studio
-    static const std::string DUSL_STD_PATH = "../../../dusl_std";
+    static const std::string DUSL_STD_PATH = "../dusl_std";
 
     [[maybe_unused]] bool loadSTL(dusl::Interpreter &visitor);
     std::vector<std::shared_ptr<dusl::StructProxyObject>> loadObjects(dusl::Interpreter &visitor);
@@ -27,6 +27,7 @@ namespace dusl {
     dusl::FResult math_floor(dusl::Interpreter &visitor, ArgumentObject &args_node, const dusl::Token& tok);
     dusl::FResult from_char_code(dusl::Interpreter& visitor, ArgumentObject& args_node, const dusl::Token& tok);
     dusl::FResult time_sleep(dusl::Interpreter& visitor, ArgumentObject& args_node, const dusl::Token& tok);
+    dusl::FResult parse_json(dusl::Interpreter& visitor, ArgumentObject& args_node, const dusl::Token& tok);
 
 
     class DFile : public dusl::DBaseStruct {

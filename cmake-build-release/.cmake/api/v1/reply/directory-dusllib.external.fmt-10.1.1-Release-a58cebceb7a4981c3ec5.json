@@ -1,0 +1,128 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"install"
+		],
+		"files" : 
+		[
+			"dusllib/external/fmt-10.1.1/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 383,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 395,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 398,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 401,
+				"parent" : 0
+			}
+		]
+	},
+	"installers" : 
+	[
+		{
+			"backtrace" : 1,
+			"component" : "Unspecified",
+			"destination" : "lib",
+			"paths" : 
+			[
+				"dusllib/external/fmt-10.1.1/libfmt.a"
+			],
+			"targetId" : "fmt::@9393824a141067c4b5db",
+			"targetIndex" : 2,
+			"type" : "target"
+		},
+		{
+			"backtrace" : 1,
+			"component" : "Unspecified",
+			"destination" : "include/fmt",
+			"paths" : 
+			[
+				"dusllib/external/fmt-10.1.1/include/fmt/args.h",
+				"dusllib/external/fmt-10.1.1/include/fmt/chrono.h",
+				"dusllib/external/fmt-10.1.1/include/fmt/color.h",
+				"dusllib/external/fmt-10.1.1/include/fmt/compile.h",
+				"dusllib/external/fmt-10.1.1/include/fmt/core.h",
+				"dusllib/external/fmt-10.1.1/include/fmt/format.h",
+				"dusllib/external/fmt-10.1.1/include/fmt/format-inl.h",
+				"dusllib/external/fmt-10.1.1/include/fmt/os.h",
+				"dusllib/external/fmt-10.1.1/include/fmt/ostream.h",
+				"dusllib/external/fmt-10.1.1/include/fmt/printf.h",
+				"dusllib/external/fmt-10.1.1/include/fmt/ranges.h",
+				"dusllib/external/fmt-10.1.1/include/fmt/std.h",
+				"dusllib/external/fmt-10.1.1/include/fmt/xchar.h"
+			],
+			"type" : "file"
+		},
+		{
+			"backtrace" : 2,
+			"component" : "Unspecified",
+			"destination" : "lib/cmake/fmt",
+			"paths" : 
+			[
+				"cmake-build-release/dusllib/external/fmt-10.1.1/fmt-config.cmake",
+				"cmake-build-release/dusllib/external/fmt-10.1.1/fmt-config-version.cmake"
+			],
+			"type" : "file"
+		},
+		{
+			"backtrace" : 3,
+			"component" : "Unspecified",
+			"destination" : "lib/cmake/fmt",
+			"exportName" : "fmt-targets",
+			"exportTargets" : 
+			[
+				{
+					"id" : "fmt::@9393824a141067c4b5db",
+					"index" : 2
+				},
+				{
+					"id" : "fmt-header-only::@9393824a141067c4b5db",
+					"index" : 0
+				}
+			],
+			"paths" : 
+			[
+				"dusllib/external/fmt-10.1.1/CMakeFiles/Export/b834597d9b1628ff12ae4314c3a2e4b8/fmt-targets.cmake"
+			],
+			"type" : "export"
+		},
+		{
+			"backtrace" : 4,
+			"component" : "Unspecified",
+			"destination" : "lib/pkgconfig",
+			"paths" : 
+			[
+				"cmake-build-release/dusllib/external/fmt-10.1.1/fmt.pc"
+			],
+			"type" : "file"
+		}
+	],
+	"paths" : 
+	{
+		"build" : "dusllib/external/fmt-10.1.1",
+		"source" : "dusllib/external/fmt-10.1.1"
+	}
+}

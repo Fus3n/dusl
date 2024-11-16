@@ -57,14 +57,14 @@ dusl::FloatObject::multiplied_by(const std::shared_ptr<Object> &other, const Tok
 
 dusl::FResult
 dusl::FloatObject::divided_by(const std::shared_ptr<Object> &other, const Token &token) {
-    if (auto intObject = std::dynamic_pointer_cast<IntObject>(other)) {
+    if (const auto intObject = std::dynamic_pointer_cast<IntObject>(other)) {
         if (intObject->value == 0) {
             return NumberError::throwZeroDivisionError(token, other);
         }
 
         long double result = value / (double)intObject->value;
         return FResult::createResult(std::make_shared<FloatObject>(result, tok), tok);
-    } else if (auto floatObject = std::dynamic_pointer_cast<FloatObject>(other)) {
+    } if (const auto floatObject = std::dynamic_pointer_cast<FloatObject>(other)) {
         if (floatObject->value == 0) {
             return NumberError::throwZeroDivisionError(token, other);
         }

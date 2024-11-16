@@ -118,11 +118,11 @@ fn add(a, b) {
     return a + b
 }
 
-# or make annonymous functions like
+# or make closures like
 sub = fn(a, b) {
     return a - b
 }
-# Note: All functions return the last element by default same for annonymous functions
+# Note: All functions return the last element by default same for closures
 ```
 
 ###  Using for-loop
@@ -157,7 +157,7 @@ println("result", result)
 mod = {
     "on": 1,
     "shout": "yes",
-    "say": fn(a) { println(a) }, # annonymous functions
+    "say": fn(a) { println(a) }, # closure
     "add": fn(a, b) { a + b },
     "test": {"John": "Doe", "Liza": "Frankenstein"},
     "results": [10, 30, 50]

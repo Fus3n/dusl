@@ -115,9 +115,11 @@ dusl::FResult dusl::StringObject::split(StringObject &str, Interpreter &visitor,
     auto first_arg = fn_node->args_node.args[0]->accept(visitor);
     if (first_arg.isError()) return first_arg;
 
-    if (auto strObj = dynamic_cast<StringObject*>(first_arg.result.get())) {
+    if (const auto strObj = dynamic_cast<StringObject*>(first_arg.result.get())) {
         return FResult::createResult(ListObject::splitAtDelimiter(str.value, strObj->value, str.tok), fn_node->tok);
     }
+
+    return FResult::createError(RunTimeError, "'split' expects an STRING as an argument", fn_node->tok);
 }
 
 dusl::FResult dusl::StringObject::to_int(StringObject &str, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node) {

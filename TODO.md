@@ -5,6 +5,7 @@
 - Fix `not` operator not working with comparision operators
 - ~~Fix `li[index] = li2[index]` just putting the whole list in the first list, parsing order error.~~
 - Add a `get_attr` kind of function to all object that allows retrieving of specific property without using member access operator (.) 
+- Dictionary entries dont require commas
 
 ### <p style="text-align: center">Things To Add (language features)</p>
 - ~~list support~~
@@ -32,6 +33,7 @@
 - Present each file as a module
 - Separate the global context
 - ~~Module System (importing) WIP~~
+- Improve and make error messages more consistent in dusl standard and objects
 - FFI?
 
 

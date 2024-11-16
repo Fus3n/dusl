@@ -18,7 +18,8 @@ dusl::FResult dusl::IntObject::add_to(const std::shared_ptr<Object>& other, cons
     if (auto intObject = std::dynamic_pointer_cast<IntObject>(other)) {
         auto result = value + intObject->value;
         return FResult::createResult(std::make_shared<IntObject>(result, tok), tok);
-    } else if (auto floatObject = std::dynamic_pointer_cast<FloatObject>(other)) {
+    }
+    if (auto floatObject = std::dynamic_pointer_cast<FloatObject>(other)) {
         auto result = value + floatObject->value;
         return FResult::createResult(std::make_shared<FloatObject>(result, tok), tok);
     }

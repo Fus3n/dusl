@@ -2,13 +2,24 @@
 #include <sstream>
 #include <utils/dusl_core.hpp>
 
+#include "utils/common.h"
+
+dusl::DictionaryObject::DictionaryObject(
+    std::unordered_map<size_t, std::tuple<std::shared_ptr<Object>, std::shared_ptr<Object>>> _items, const Token &tok): Object(tok), items(std::move(_items)) {
+
+    functions["exists"] = reinterpret_cast<PropertyFunction>(exists);
+    functions["get"] = reinterpret_cast<PropertyFunction>(get);
+    functions["keys"] = reinterpret_cast<PropertyFunction>(keys);
+    functions["values"] = reinterpret_cast<PropertyFunction>(values);
+}
+
 std::string dusl::DictionaryObject::toString() const {
     std::stringstream ss;
     ss << "{";
-    for (auto& item: items) {
-        ss << std::get<0>(item.second)->toString();
+    for (const auto&[fst, snd]: items) {
+        ss << std::get<0>(snd)->toString();
         ss << ": ";
-        ss << std::get<1>(item.second)->toString();
+        ss << std::get<1>(snd)->toString();
         ss << ", ";
     }
     ss << "}";
@@ -27,7 +38,7 @@ dusl::FResult dusl::DictionaryObject::index(std::shared_ptr<ListObject> idx_args
             tok);
     }
 
-    auto first_arg = idx_args->items[0];
+    const auto first_arg = idx_args->items[0];
     auto hashed = first_arg->hash(tok);
     if (hashed.isError())
         return hashed;
@@ -67,7 +78,36 @@ dusl::FResult dusl::DictionaryObject::getProperty(const std::string &name, const
     if (name == "size") {
         return FResult::createResult(std::make_shared<IntObject>(items.size(), tok), tok);
     }
+    const auto hashed_key = std::hash<std::string>{}(name);
+    if (auto found_item = items.find(hashed_key); found_item != items.end()) {
+        const auto&[ key, value ] { *found_item };
+        // get value from tuple
+        const auto res = std::get<1>(value);
+        return res ? FResult::createResult(res, tok) : FResult::createResult(tok);
+    }
+
     return Object::getProperty(name, tok);
+}
+
+dusl::FResult dusl::DictionaryObject::callProperty(Interpreter &visitor,
+    const std::shared_ptr<dusl::FunctionCallNode> fn_node) {
+
+    const auto hashed_key = std::hash<std::string>{}(fn_node->tok.value);
+    if (auto found_item = items.find(hashed_key); found_item != items.end()) {
+        const auto&[ key, value ] { *found_item };
+        // get value from tuple
+        const auto res = std::get<1>(value); // get the value
+        if (const auto funcObj = std::dynamic_pointer_cast<FunctionObject>(res)) {
+            auto args_result = fn_node->args_node.accept(visitor);
+            if (args_result.isError())
+                return args_result;
+
+            ArgumentObject arg_obj_new = *dynamic_cast<ArgumentObject*>(args_result.result.get());
+            return funcObj->call(visitor, arg_obj_new, tok);
+        }
+        return res ? FResult::createResult(res, tok) : FResult::createResult(tok);
+    }
+    return Object::callProperty(visitor, fn_node);
 }
 
 dusl::FResult dusl::DictionaryObject::exists(DictionaryObject &dict, dusl::Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node) {
@@ -112,7 +152,7 @@ dusl::FResult dusl::DictionaryObject::get(DictionaryObject &dict, dusl::Interpre
 
     const auto it = dict.items.find(intObject->value);
     if (it == dict.items.end()) {
-        return FResult::createResult(std::make_shared<NoneObject>(dict.tok), dict.tok); // TODO: return a proper "None" type
+        return FResult::createResult(dict.tok); // TODO: return a proper "None" type
     }
 
     return FResult::createResult(std::get<1>(it->second), dict.tok);
@@ -149,4 +189,21 @@ dusl::FResult dusl::DictionaryObject::values(DictionaryObject &dict, dusl::Inter
     }
 
     return FResult::createResult(list, dict.tok);
+}
+
+dusl::FResult dusl::DictionaryObject::loadJson(std::string& jsn, dusl::Interpreter &visitor, const Token &tok) {
+    Lexer lexer;
+    Parser parser;
+    // trim code
+    str_trim(jsn);
+
+    if (jsn.empty()) {
+        return FResult::createResult(tok);
+    }
+
+    auto tokens = lexer.tokenize("", jsn);
+    auto ast = parser.parse(jsn, "", tokens);
+    // TODO: fix needed, so it doesn't evaluate normal code
+    auto return_val = visitor.visit(ast);
+    return return_val;
 }

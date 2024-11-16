@@ -179,8 +179,7 @@ dusl::ListObject::index_assign(std::shared_ptr<Object> &right, std::shared_ptr<L
 }
 
 dusl::FResult dusl::ListObject::for_each(ListObject &list, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node) {
-    auto res= verifyArgsCount(fn_node->args_node.args.size(), 1, list.tok);
-    if (res.has_value()) {
+    if (const auto res= verifyArgsCount(fn_node->args_node.args.size(), 1, list.tok); res.has_value()) {
         return FResult::createError(RunTimeError, res.value(), fn_node->tok);
     }
 
@@ -188,8 +187,8 @@ dusl::FResult dusl::ListObject::for_each(ListObject &list, Interpreter &visitor,
     if (callback_obj.isError()) return callback_obj;
 
     FResult last;
-    for (auto & item : list.items) {
-        std::vector<std::shared_ptr<Object>> args { item };
+    for (const auto & item : list.items) {
+        const std::vector<std::shared_ptr<Object>> args { item };
         auto argObj = ArgumentObject(args, item->tok);
 
         last = callback_obj.result->call(visitor, argObj, item->tok);
@@ -214,5 +213,50 @@ dusl::FResult dusl::ListObject::pop_back(ListObject &list, Interpreter &visitor,
     }
 
     return FResult::createError(IndexError, "Cannot pop from empty list", fn_node->tok);
+}
+
+dusl::FResult dusl::ListObject::map(ListObject &list, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node) {
+    if (const auto res= verifyArgsCount(fn_node->args_node.args.size(), 1, list.tok); res.has_value())
+        return FResult::createError(RunTimeError, res.value(), fn_node->tok);
+
+    auto callback_obj = fn_node->args_node.args[0]->accept(visitor);
+    if (callback_obj.isError()) return callback_obj;
+
+    const auto callback_func = dynamic_cast<FunctionObject*>(callback_obj.result.get());
+    if (callback_func == nullptr) {
+        return FResult::createError(
+            RunTimeError,
+            fmt::format("Invalid callback function"),
+            fn_node->tok
+        );
+    }
+
+    FResult last;
+    const auto new_list = std::make_shared<ListObject>(list.tok);
+    new_list->items.reserve(list.items.size());
+
+    for (int i = 0; i < list.items.size(); i++) {
+        std::vector<std::shared_ptr<Object>> args;
+        const size_t arg_size = callback_func->args.size();
+        if (arg_size >= 1) {
+            args.emplace_back(list.items[i]);
+        }
+        if (arg_size == 2) {
+            args.emplace_back(std::make_shared<IntObject>(i, list.tok));
+        }
+
+        auto argObj = ArgumentObject(args, list.items[i]->tok);
+        last = callback_func->call(visitor, argObj, list.items[i]->tok);
+        if (last.isError())
+            return last;
+        if (last.result->isReturn()) {
+            if (const auto returnObj = dynamic_cast<ReturnObject*>(last.result.get())) {
+                new_list->items.push_back(returnObj->return_obj);
+            }
+        }
+        new_list->items.push_back(last.result);
+    }
+
+    return FResult::createResult(new_list, fn_node->tok);
 }
 

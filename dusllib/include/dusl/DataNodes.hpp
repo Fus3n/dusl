@@ -18,120 +18,120 @@ namespace dusl {
     public:
         Token tok;
 
-        explicit DataNode(Token tok): tok(std::move(tok)) {}
-        virtual ~DataNode() = default;
+        explicit DataNode(const Token& tok): tok(tok) {}
+        ~DataNode() override = default;
         [[nodiscard]] virtual std::string toString() const;
 
         virtual dusl::FResult accept(Interpreter& visitor) = 0;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class ProgramNode: public DataNode {
+    class ProgramNode final : public DataNode {
     public:
         std::vector<std::shared_ptr<DataNode>> statements;
 
-        explicit ProgramNode(Token tok): DataNode(std::move(tok)) {}
+        explicit ProgramNode(const Token& tok): DataNode(tok) {}
 
         dusl::FResult accept(Interpreter& visitor) override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class BlockNode: public DataNode {
+    class BlockNode final : public DataNode {
     public:
         std::vector<std::shared_ptr<DataNode>> statements;
 
-        explicit BlockNode(Token tok): DataNode(std::move(tok)) {}
-        BlockNode(std::vector<std::shared_ptr<DataNode>> _statements, Token tok): DataNode(std::move(tok)), statements(std::move(_statements)) {}
+        explicit BlockNode(const Token& tok): DataNode(tok) {}
+        BlockNode(std::vector<std::shared_ptr<DataNode>> _statements, const Token &tok): DataNode(tok), statements(std::move(_statements)) {}
 
         [[nodiscard]] std::string toString() const override;
         dusl::FResult accept(Interpreter& visitor) override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class StringNode: public DataNode {
+    class StringNode final : public DataNode {
     public:
         std::string value;
 
-        StringNode(std::string val, Token tok): DataNode(std::move(tok)), value(std::move(val)) {}
+        StringNode(std::string val, const Token& tok): DataNode(tok), value(std::move(val)) {}
         [[nodiscard]] std::string toString() const override;
         dusl::FResult accept(Interpreter& visitor) override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class IntNode: public DataNode {
+    class IntNode final : public DataNode {
     public:
         int64_t value;
-        IntNode(int64_t val, Token tok): DataNode(std::move(tok)), value(val) {}
+        IntNode(const int64_t val, const Token& tok): DataNode(tok), value(val) {}
         [[nodiscard]] std::string toString() const override;
         dusl::FResult accept(Interpreter& visitor) override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class FloatNode: public DataNode {
+    class FloatNode final : public DataNode {
     public:
         long double value;
-        FloatNode(long double val, Token tok): DataNode(std::move(tok)), value(val) {}
+        FloatNode(const long double val, const Token &tok): DataNode(tok), value(val) {}
         [[nodiscard]] std::string toString() const override;
         dusl::FResult accept(Interpreter& visitor) override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class ListNode: public DataNode {
+    class ListNode final : public DataNode {
     public:
         std::vector<std::shared_ptr<dusl::DataNode>> items;
-        ListNode(std::vector<std::shared_ptr<dusl::DataNode>> _items, Token tok): DataNode(std::move(tok)), items(std::move(_items)) {}
+        ListNode(std::vector<std::shared_ptr<dusl::DataNode>> _items, const Token &tok): DataNode(tok), items(std::move(_items)) {}
         [[nodiscard]] std::string toString() const override;
         dusl::FResult accept(Interpreter &visitor) override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class DictionaryNode: public DataNode {
+    class DictionaryNode final : public DataNode {
     public:
         typedef std::vector<std::tuple<std::shared_ptr<dusl::DataNode>, std::shared_ptr<dusl::DataNode>>> KeyValTuples;
         KeyValTuples items;
 
-        DictionaryNode(KeyValTuples _items, Token tok): DataNode(std::move(tok)), items(std::move(_items)) {}
+        DictionaryNode(KeyValTuples _items, const Token& tok): DataNode(tok), items(std::move(_items)) {}
 
         [[nodiscard]] std::string toString() const override;
         dusl::FResult accept(Interpreter &visitor) override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class VarAccessNode: public DataNode {
+    class VarAccessNode final: public DataNode {
     public:
         std::string value;
-        explicit VarAccessNode(Token _tok): DataNode(std::move(_tok)), value(_tok.value) {}
-        explicit VarAccessNode(std::string _value, Token _tok): DataNode(std::move(_tok)), value(std::move(_value)) {}
+        explicit VarAccessNode(const Token &_tok): DataNode(_tok), value(_tok.value) {}
+        explicit VarAccessNode(std::string _value, const Token& _tok): DataNode(_tok), value(std::move(_value)) {}
         [[nodiscard]] std::string toString() const override;
         dusl::FResult accept(Interpreter& visitor) override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class AssignmentNode: public DataNode {
+    class AssignmentNode final : public DataNode {
     public:
 
         std::shared_ptr<DataNode> expr;
-        AssignmentNode(DataNode* _expr, Token tok): DataNode(std::move(tok)), expr(_expr) {}
+        AssignmentNode(DataNode* _expr, const Token& tok): DataNode(tok), expr(_expr) {}
 
         [[nodiscard]] std::string toString() const override;
         dusl::FResult accept(Interpreter& visitor) override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class ArgumentNode: public DataNode {
+    class ArgumentNode final : public DataNode {
     public:
         std::vector<std::shared_ptr<dusl::DataNode>> args;
         std::unordered_map<std::string, std::shared_ptr<dusl::DataNode>> default_args;
 
-        ArgumentNode(std::vector<std::shared_ptr<dusl::DataNode>> _args, std::unordered_map<std::string, std::shared_ptr<dusl::DataNode>> _default_args, Token tok)
-                : DataNode(std::move(tok)), args(std::move(_args)), default_args(std::move(_default_args)) {}
+        ArgumentNode(std::vector<std::shared_ptr<dusl::DataNode>> _args, std::unordered_map<std::string, std::shared_ptr<dusl::DataNode>> _default_args, const Token &tok)
+                : DataNode(tok), args(std::move(_args)), default_args(std::move(_default_args)) {}
 
         [[nodiscard]] std::string toString() const override;
         dusl::FResult accept(Interpreter& visitor) override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class FunctionDefNode: public DataNode {
+    class FunctionDefNode final : public DataNode {
     public:
         std::string func_name;
         bool is_anon = false;
@@ -143,95 +143,95 @@ namespace dusl {
             std::string _func_name,
             ArgumentNode _args_node,
             BlockNode* _block,
-            Token tok,
-            bool _is_anon=false
-        ): DataNode(std::move(tok)), args_node(std::move(_args_node)), block(_block), func_name(std::move(_func_name)), is_anon(_is_anon) {}
+            const Token &tok,
+            const bool _is_anon=false
+        ): DataNode(tok), func_name(std::move(_func_name)), is_anon(_is_anon), args_node(std::move(_args_node)), block(_block) {}
 
         [[nodiscard]] std::string toString() const override;
         dusl::FResult accept(Interpreter& visitor) override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class FunctionCallNode: public DataNode {
+    class FunctionCallNode final : public DataNode {
     public:
         dusl::ArgumentNode args_node;
 
-        FunctionCallNode(Token tok, dusl::ArgumentNode _args_node):
-        DataNode(std::move(tok)), args_node(std::move(_args_node)) {}
+        FunctionCallNode(const Token& tok, dusl::ArgumentNode _args_node):
+        DataNode(tok), args_node(std::move(_args_node)) {}
 
         [[nodiscard]] std::string toString() const override;
         dusl::FResult accept(Interpreter& visitor) override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class FunctionCallNodeEXPR: public DataNode {
+    class FunctionCallNodeEXPR final : public DataNode {
     public:
         std::unique_ptr<dusl::DataNode> function_expr;
         dusl::ArgumentNode args_node;
 
-        FunctionCallNodeEXPR(DataNode* _functionExpr, ArgumentNode _args_node, Token tok):
-                DataNode(std::move(tok)), args_node(std::move(_args_node)), function_expr(_functionExpr) {}
+        FunctionCallNodeEXPR(DataNode* _functionExpr, ArgumentNode _args_node, const Token& tok):
+                DataNode(tok), function_expr(_functionExpr), args_node(std::move(_args_node)) {}
 
         [[nodiscard]] std::string toString() const override;
         dusl::FResult accept(Interpreter &visitor) override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class StructDefNode: public DataNode {
+    class StructDefNode final : public DataNode {
     public:
         std::vector<std::shared_ptr<DataNode>> values;
 
-        explicit StructDefNode(Token tok): DataNode(std::move(tok)) {}
-        StructDefNode(std::vector<std::shared_ptr<DataNode>> _values, Token tok): DataNode(std::move(tok)), values(std::move(_values)) {}
+        explicit StructDefNode(const Token& tok): DataNode(tok) {}
+        StructDefNode(std::vector<std::shared_ptr<DataNode>> _values, const Token& tok): DataNode(tok), values(std::move(_values)) {}
         [[nodiscard]] std::string toString() const override;
         dusl::FResult accept(Interpreter& visitor) override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class MemberAccessNode: public DataNode {
+    class MemberAccessNode final : public DataNode {
     public:
         std::shared_ptr<DataNode> left_node;
         std::shared_ptr<DataNode> right_node;
 
-        MemberAccessNode(DataNode* _left_node, DataNode* _right_node, Token tok)
-                : DataNode(std::move(tok)), left_node(_left_node), right_node(_right_node) {}
+        MemberAccessNode(DataNode* _left_node, DataNode* _right_node, const Token &tok)
+                : DataNode(tok), left_node(_left_node), right_node(_right_node) {}
 
         [[nodiscard]] std::string toString() const override;
         dusl::FResult accept(Interpreter &visitor) override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class ConditionNode: public DataNode {
+    class ConditionNode final : public DataNode {
     public:
         std::shared_ptr<DataNode> condition_node;
         std::shared_ptr<DataNode> body_node;
 
-        explicit ConditionNode(Token tok): DataNode(std::move(tok)){}
-        explicit ConditionNode(DataNode* _condition_node, DataNode* _body_node, Token tok):
-            DataNode(std::move(tok)),
+        explicit ConditionNode(const Token& tok): DataNode(tok){}
+        explicit ConditionNode(DataNode* _condition_node, DataNode* _body_node, const Token& tok):
+            DataNode(tok),
             condition_node(_condition_node),
             body_node(_body_node)
             {}
 
         [[nodiscard]] std::string toString() const override;
         dusl::FResult accept(Interpreter &visitor) override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class IFNode: public DataNode {
+    class IFNode final : public DataNode {
     public:
         ConditionNode cond_node;
         std::shared_ptr<BlockNode> else_node;
         std::vector<ConditionNode> else_ifs;
 
-        explicit IFNode(Token tok, ConditionNode _condNode) : DataNode(std::move(tok)), cond_node(std::move(_condNode)) {}
+        explicit IFNode(const Token& tok, ConditionNode _condNode) : DataNode(tok), cond_node(std::move(_condNode)) {}
 
         [[nodiscard]] std::string toString() const override;
         dusl::FResult accept(Interpreter &visitor) override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class LogicalOpNode: public DataNode {
+    class LogicalOpNode final : public DataNode {
     public:
         enum Operations {
             OP_AND,
@@ -242,38 +242,38 @@ namespace dusl {
         std::shared_ptr<DataNode> right_node;
         Operations op;
 
-        LogicalOpNode(DataNode* _left, DataNode *_right, Operations _op, Token tok) :
-        DataNode(std::move(tok)), left_node(_left), right_node(_right), op(_op) {}
+        LogicalOpNode(DataNode* _left, DataNode *_right, const Operations _op, const Token& tok) :
+        DataNode(tok), left_node(_left), right_node(_right), op(_op) {}
 
         [[nodiscard]] std::string toString() const override;
         dusl::FResult accept(Interpreter &visitor) override;
 
         static std::string OpToString(Operations op);
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
 
     };
 
-    class ReturnNode: public DataNode {
+    class ReturnNode final : public DataNode {
     public:
         std::shared_ptr<DataNode> return_node;
 
-        ReturnNode(DataNode* _return_node, Token tok) : DataNode(std::move(tok)), return_node(_return_node) {}
+        ReturnNode(DataNode* _return_node, const Token& tok) : DataNode(tok), return_node(_return_node) {}
         [[nodiscard]] std::string toString() const override;
         dusl::FResult accept(Interpreter &visitor) override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class WhileLoopNode: public DataNode {
+    class WhileLoopNode final : public DataNode {
     public:
         ConditionNode cond_node;
 
-        WhileLoopNode(ConditionNode _cond_node, Token tok): DataNode(std::move(tok)), cond_node(std::move(_cond_node)) {}
+        WhileLoopNode(ConditionNode _cond_node, const Token& tok): DataNode(tok), cond_node(std::move(_cond_node)) {}
         [[nodiscard]] std::string toString() const override;
         dusl::FResult accept(Interpreter &visitor) override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class UnaryOpNode : public DataNode {
+    class UnaryOpNode final : public DataNode {
     public:
         enum Operations {
             OP_MINUS,
@@ -284,94 +284,97 @@ namespace dusl {
         std::shared_ptr<DataNode> right_node;
         Operations op;
 
-        UnaryOpNode(DataNode* _right_node, Operations _op, Token tok) : DataNode(std::move(tok)), right_node(std::move(_right_node)), op(_op) {}
+        UnaryOpNode(DataNode* _right_node, const Operations _op, const Token& tok) : DataNode(tok), right_node(std::move(_right_node)), op(_op) {}
 
         [[nodiscard]] std::string toString() const override;
         dusl::FResult accept(Interpreter &visitor) override;
         static std::string OpToString(Operations op);
         static Operations TokToOperation(const Token& token);
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class IndexNode: public DataNode {
+    class IndexNode final : public DataNode {
     public:
         std::unique_ptr<DataNode> expr;
         std::unique_ptr<ListNode> index_args;
 
-        IndexNode(DataNode* _expr, ListNode* _index_args, Token tok): DataNode(std::move(tok)), expr(_expr), index_args(_index_args) {}
+        IndexNode(DataNode* _expr, ListNode* _index_args, const Token &tok): DataNode(tok), expr(_expr), index_args(_index_args) {}
         dusl::FResult accept(Interpreter &visitor) override;
         [[nodiscard]] std::string toString() const override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class IndexAssignNode: public DataNode {
+    class IndexAssignNode final : public DataNode {
     public:
         std::unique_ptr<DataNode> left_node;
         std::unique_ptr<DataNode> right_node;
         std::unique_ptr<ListNode> index_args;
 
-        IndexAssignNode(DataNode* _left_node, DataNode* _right_node, ListNode* _index_args, Token tok): DataNode(std::move(tok)), left_node(_left_node), right_node(_right_node), index_args(_index_args) {}
+        IndexAssignNode(DataNode* _left_node, DataNode* _right_node, ListNode* _index_args, const Token& tok): DataNode(tok), left_node(_left_node), right_node(_right_node), index_args(_index_args) {}
         dusl::FResult accept(Interpreter &visitor) override;
         [[nodiscard]] std::string toString() const override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class NoneNode: public DataNode {
+    class NoneNode final : public DataNode {
     public:
 
-        explicit NoneNode(Token tok): DataNode(std::move(tok)){}
+        explicit NoneNode(const Token &tok): DataNode(tok){}
         [[nodiscard]] std::string toString() const override;
         dusl::FResult accept(Interpreter& visitor) override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class BreakNode: public DataNode {
+    class BreakNode final : public DataNode {
     public:
-        explicit BreakNode(Token tok): DataNode(std::move(tok)){}
+        explicit BreakNode(const Token& tok): DataNode(tok){}
         [[nodiscard]] std::string toString() const override;
         dusl::FResult accept(Interpreter& visitor) override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class RangeNode: public DataNode {
+    class RangeNode final : public DataNode {
     public:
         const std::unique_ptr<DataNode> start;
         const std::unique_ptr<DataNode> end;
 
-        RangeNode(DataNode* _start, DataNode* _end,Token tok): DataNode(std::move(tok)), start(_start), end(_end) {}
+        RangeNode(DataNode* _start, DataNode* _end,const Token& tok): DataNode(tok), start(_start), end(_end) {}
 
         [[nodiscard]] std::string toString() const override;
         dusl::FResult accept(Interpreter& visitor) override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class ForLoopNode: public DataNode {
+    class ForLoopNode final : public DataNode {
     public:
         std::string ident;
         std::unique_ptr<DataNode> expr;
         std::unique_ptr<BlockNode> block;
 
-        ForLoopNode(std::string _ident, DataNode* _expr, BlockNode* _block, Token tok):
-            DataNode(std::move(tok)), ident(std::move(_ident)), expr(_expr), block(_block) {}
+        ForLoopNode(std::string _ident, DataNode* _expr, BlockNode* _block, const Token& tok):
+            DataNode(tok), ident(std::move(_ident)), expr(_expr), block(_block) {}
 
         dusl::FResult accept(Interpreter &visitor) override;
         [[nodiscard]] std::string toString() const override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class ImportNode: public DataNode {
+    class ImportNode final : public DataNode {
     public:
         std::string module_path;
         std::vector<std::string> symbols;
         bool import_all = false;
 
-        ImportNode(std::string _module_path, std::vector<std::string> _symbols, bool _import_all, Token tok): DataNode(std::move(tok)), module_path(std::move(_module_path)), symbols(std::move(_symbols)), import_all(_import_all) {}
+        ImportNode(std::string _module_path, std::vector<std::string> _symbols, const bool _import_all, const Token& tok): DataNode(tok), module_path(std::move(_module_path)), symbols(std::move(_symbols)), import_all(_import_all) {}
         dusl::FResult accept(Interpreter &visitor) override;
+
+        dusl::FResult loadDynamicLibrary(const std::string &path, Interpreter &visitor, const Token &tok);
+
         [[nodiscard]] std::string toString() const override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
-    class BinOpNode : public DataNode {
+    class BinOpNode final : public DataNode {
     public:
         enum Operations {
             OP_PLUS,
@@ -391,14 +394,14 @@ namespace dusl {
         std::shared_ptr<DataNode> right_node;
         Operations op;
 
-        BinOpNode(DataNode* _left, DataNode* _right, Operations _op, Token tok) :
-                DataNode(std::move(tok)), left_node(_left), right_node(_right), op(_op) {}
+        BinOpNode(DataNode* _left, DataNode* _right, const Operations _op, const Token& tok) :
+                DataNode(tok), left_node(_left), right_node(_right), op(_op) {}
 
         [[nodiscard]] std::string toString() const override;
         static std::string OpToString(Operations op);
         static Operations TokToOperation(const Token& token);
         dusl::FResult accept(Interpreter& visitor) override;
-        nlohmann::ordered_json toJson() const override;
+        [[nodiscard]] nlohmann::ordered_json toJson() const override;
     };
 
 }

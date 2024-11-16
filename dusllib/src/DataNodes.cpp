@@ -674,7 +674,7 @@ dusl::FResult dusl::WhileLoopNode::accept(Interpreter &visitor) {
     if (cond.isError())
         return cond;
 
-    while (cond.result->isTrue()) {
+    while (cond.result.get() && cond.result->isTrue()) {
         last_result = cond_node.body_node->accept(visitor);
 
         if (last_result.isError() || last_result.result->isBreak() || last_result.result->isReturn()) {
@@ -682,6 +682,10 @@ dusl::FResult dusl::WhileLoopNode::accept(Interpreter &visitor) {
         }
 
         cond = cond_node.condition_node->accept(visitor);
+    }
+
+    if (!cond.result.get()) {
+        fmt::println("Warning: Condition was null");
     }
     return last_result;
 }
@@ -978,22 +982,12 @@ dusl::FResult dusl::ImportNode::accept(dusl::Interpreter &visitor) {
 
     std::filesystem::path path;
 
-    // EXPERIMENTAL: import standard from CPP side
-//    if (module_path == "std:file") {
-//        auto file_struct = dusl::loadObjects(visitor);
-//        return FResult::createResult(file_struct, tok);
-//    }
-
     // check if string starts with "std:"
     if (module_path.size() > 4 && module_path.substr(0, 4) == "std:") {
         auto base = module_path.substr(4);
         path = std::filesystem::path(DUSL_STD_PATH) / base;
     } else {
         path = std::filesystem::path(module_path);
-    }
-
-    if (!path.has_extension()) {
-        path = path.concat(".dusl"); // TODO: file extension
     }
 
     auto file_context_name = path.stem().string();
@@ -1005,14 +999,21 @@ dusl::FResult dusl::ImportNode::accept(dusl::Interpreter &visitor) {
             tok);
     }
 
+    if (!path.has_extension()) {
+        path = path.concat(".dusl"); // TODO: file extension
+    }
+
     try {
-        if (!exists(path)) {
+        if (auto new_path = path.replace_extension(".dusll"); !exists(path) && !exists(new_path)) {
             return FResult::createError(
                 ImportError,
                 fmt::format("No such module named '{}' was found", path.string()),
                 tok
             );
-		}
+        }
+        if (path.extension() == ".dusll") {
+            return loadDynamicLibrary(path.string(), visitor, tok);
+        }
         code = dusl::read_file(path.string());
     } catch (std::runtime_error &e) {
         return FResult::createError(
@@ -1068,6 +1069,55 @@ dusl::FResult dusl::ImportNode::accept(dusl::Interpreter &visitor) {
     visitor.ctx.setCurrentSymbol(base_table);
 
     return result_val;
+}
+
+// Add new function to handle dynamic library loading
+dusl::FResult dusl::ImportNode::loadDynamicLibrary(const std::string& path, Interpreter& visitor, const Token& tok) {
+#ifdef _WIN32
+    const HMODULE handle = LoadLibraryA(path.c_str());
+    if (!handle) {
+        return FResult::createError(
+            ImportError,
+            fmt::format("Failed to load dynamic library '{}'", path.c_str()),
+            tok
+        );
+    }
+
+    // Initialization function
+    using InitFunc = bool (*)(dusl::Interpreter&);
+    const auto init = reinterpret_cast<InitFunc>(GetProcAddress(handle, "dusl_init_module"));
+    
+    if (!init) {
+        FreeLibrary(handle);
+        return FResult::createError(
+            ImportError,
+            fmt::format("Invalid DUSL extension - missing init function in '{}'", path),
+            tok
+        );
+    }
+
+    // Initialize the module
+    if (!init(visitor)) {
+        FreeLibrary(handle);
+        return FResult::createError(
+            ImportError,
+            fmt::format("Failed to initialize module '{}'", path),
+            tok
+        );
+    }
+
+    // Store handle to prevent unloading (optional)
+    // visitor.loadedLibraries.push_back(handle);
+    
+    return FResult::createResult(std::make_shared<NoneObject>(tok), tok);
+#else
+    // Need similar implementation for other platforms using dlopen/dlsym
+    return FResult::createError(
+        ImportError,
+        "Dynamic loading not supported on this platform",
+        tok
+    );
+#endif
 }
 
 std::string dusl::ArgumentNode::toString() const {

@@ -30,7 +30,23 @@ namespace dusl {
         explicit FResult(std::shared_ptr<ErrorObject> _err) : err(_err), is_error(true) {}
 
         static dusl::FResult createError(ErrorType err_type, std::string msg, const Token& tok);
+
+        /**
+        * @brief Creates a result object with encapsulated result
+        *
+        * @param _result object
+        * @param tok token that will be used to create NoneObject.
+        * @return int dusl::FResult Object
+        */
         static dusl::FResult createResult(const std::shared_ptr<Object> &_result, const Token &tok);
+
+        /**
+        * @brief Creates a result that returns NoneObject
+        *
+        * @param tok token that will be used to create NoneObject.
+        * @return int dusl::FResult Object
+        */
+        static dusl::FResult createResult(const Token &tok);
 
         [[nodiscard]] bool isError() const;
         [[nodiscard]] std::string toString() const;
@@ -43,6 +59,8 @@ namespace dusl {
     // Base class for the objects that can be returned from visit functions
     class Object {
     public:
+        virtual ~Object() = default;
+
         using PropertyFunction = dusl::FResult (*)(Object &, Interpreter &,
                                                    const std::shared_ptr<FunctionCallNode> &);
         std::unordered_map<std::string, PropertyFunction> functions;
@@ -86,7 +104,7 @@ namespace dusl {
     };
 
 // Derived classes for specific types
-    class NoneObject : public Object {
+    class NoneObject final: public Object {
     public:
         explicit NoneObject(Token tok) : Object(std::move(tok)) {}
 
@@ -95,7 +113,7 @@ namespace dusl {
         [[nodiscard]] std::string getTypeString() const override;
     };
 
-    class ReturnObject : public Object {
+    class ReturnObject final: public Object {
     public:
         std::shared_ptr<Object> return_obj;
 
@@ -108,7 +126,7 @@ namespace dusl {
         [[nodiscard]] bool isReturn() const override;
     };
 
-    class StringObject : public Object {
+    class StringObject final: public Object {
     public:
         std::string value;
 
@@ -159,7 +177,7 @@ namespace dusl {
         static dusl::FResult throwZeroDivisionError(const Token &leftToken, const std::shared_ptr<Object> &other);
     };
 
-    class IntObject : public Object {
+    class IntObject final: public Object {
     public:
         int64_t value;
 
@@ -199,7 +217,7 @@ namespace dusl {
 
     };
 
-    class FloatObject : public Object {
+    class FloatObject final: public Object {
     public:
         long double value;
 
@@ -241,22 +259,47 @@ namespace dusl {
         to_string(FloatObject &floating, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node);
     };
 
+    class BooleanObject final: public Object {
+    public:
+        bool value;
 
-    class ListObject : public Object {
+        BooleanObject(const bool _value, const Token &tok) : Object(tok), value(_value) {}
+
+        [[nodiscard]] dusl::FResult hash(const dusl::Token &token) const override;
+        [[nodiscard]] std::string toString() const override;
+        [[nodiscard]] bool isTrue() const override;
+        [[nodiscard]] std::string getTypeString() const override;
+
+        dusl::FResult add_to(const std::shared_ptr<Object> &other, const Token &token) override;
+        dusl::FResult sub_by(const std::shared_ptr<Object> &other, const Token &token) override;
+        dusl::FResult multiplied_by(const std::shared_ptr<Object> &other, const Token &token) override;
+        dusl::FResult divided_by(const std::shared_ptr<Object> &other, const Token &token) override;
+        dusl::FResult modulo_by(const std::shared_ptr<Object> &other, const Token &token) override;
+        dusl::FResult greater_than(const std::shared_ptr<Object> &other, const Token &token) override;
+        dusl::FResult less_than(const std::shared_ptr<Object> &other, const Token &token) override;
+        dusl::FResult greater_or_equal(const std::shared_ptr<Object> &other, const Token &token) override;
+        dusl::FResult less_or_equal(const std::shared_ptr<Object> &other, const Token &token) override;
+        dusl::FResult equal_to(const std::shared_ptr<Object> &other, const Token &token) override;
+        dusl::FResult not_equal_to(const std::shared_ptr<Object> &other, const Token &token) override;
+    };
+
+
+    class ListObject final: public Object {
     public:
         std::vector<std::shared_ptr<Object>> items;
 
-        explicit ListObject(Token tok) : Object(std::move(tok)) {
+        explicit ListObject(const Token &tok) : Object(tok) {
             functions["set"] = reinterpret_cast<PropertyFunction>(ListObject::set);
             functions["push"] = reinterpret_cast<PropertyFunction>(ListObject::push);
             functions["get"] = reinterpret_cast<PropertyFunction>(ListObject::get);
             functions["forEach"] = reinterpret_cast<PropertyFunction>(ListObject::for_each);
             functions["pop"] = reinterpret_cast<PropertyFunction>(ListObject::pop_back);
+            functions["map"] = reinterpret_cast<PropertyFunction>(ListObject::map);
         }
 
         [[nodiscard]] std::string toString() const override;
 
-        dusl::FResult index(std::shared_ptr<ListObject> idx_args, const std::optional<Token> token = std::nullopt) override;
+        dusl::FResult index(std::shared_ptr<ListObject> idx_args, std::optional<Token> token = std::nullopt) override;
         dusl::FResult index_assign(std::shared_ptr<Object> &right, std::shared_ptr<ListObject> idx_args) override;
 
         dusl::FResult add_to(const std::shared_ptr<Object>& other, const Token& token) override;
@@ -277,25 +320,24 @@ namespace dusl {
         for_each(ListObject &list, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node);
         static dusl::FResult
         pop_back(ListObject &list, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node);
+        static dusl::FResult
+        map(ListObject &list, Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node);
     };
 
-    class DictionaryObject : public Object {
+    class DictionaryObject final: public Object {
     public:
+
+        // hashed key as key, key object, value object
         std::unordered_map<size_t, std::tuple<std::shared_ptr<Object>, std::shared_ptr<Object>>> items;
 
         DictionaryObject(
                 std::unordered_map<size_t, std::tuple<std::shared_ptr<Object>, std::shared_ptr<Object>>> _items,
-                Token tok) : Object(std::move(tok)), items(std::move(_items)) {
-
-            functions["exists"] = reinterpret_cast<PropertyFunction>(DictionaryObject::exists);
-            functions["get"] = reinterpret_cast<PropertyFunction>(DictionaryObject::get);
-            functions["keys"] = reinterpret_cast<PropertyFunction>(DictionaryObject::keys);
-            functions["values"] = reinterpret_cast<PropertyFunction>(DictionaryObject::values);
-        }
+                const Token& tok);
 
         [[nodiscard]] std::string toString() const override;
         [[nodiscard]] std::string getTypeString() const override;
         dusl::FResult getProperty(const std::string &name, const Token &tok) override;
+        dusl::FResult callProperty(Interpreter &visitor, const std::shared_ptr<dusl::FunctionCallNode> fn_node) override;
         dusl::FResult index(std::shared_ptr<ListObject> idx_args, const std::optional<Token> token = std::nullopt) override;
         dusl::FResult index_assign(std::shared_ptr<Object> &right, std::shared_ptr<ListObject> idx_args) override;
 
@@ -305,46 +347,34 @@ namespace dusl {
         static dusl::FResult keys(DictionaryObject &dict, dusl::Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node);
         static dusl::FResult values(DictionaryObject &dict, dusl::Interpreter &visitor, const std::shared_ptr<FunctionCallNode> &fn_node);
 
+        static dusl::FResult loadJson(std::string& jsn, dusl::Interpreter &visitor, const Token &tok);
     };
 
-    class BooleanObject : public Object {
-    public:
-        bool value;
-
-        BooleanObject(bool _value, Token tok) : Object(std::move(tok)), value(_value) {}
-
-        [[nodiscard]] dusl::FResult hash(const dusl::Token &token) const override;
-        [[nodiscard]] std::string toString() const override;
-        [[nodiscard]] bool isTrue() const override;
-    };
-
-    class ArgumentObject : public Object {
+    class ArgumentObject final: public Object {
     public:
         std::vector<std::shared_ptr<dusl::Object>> args {};
         std::unordered_map<std::string, std::shared_ptr<dusl::Object>> default_args {};
 
-
         ArgumentObject(
             std::vector<std::shared_ptr<dusl::Object>> _args,
             std::unordered_map<std::string, std::shared_ptr<dusl::Object>> _default_args,
-            Token tok
-        ): Object(std::move(tok)), args(std::move(_args)), default_args(std::move(_default_args)) {}
+            const Token& tok
+        ): Object(tok), args(std::move(_args)), default_args(std::move(_default_args)) {}
         [[nodiscard]] std::string toString() const override;
 
         ArgumentObject(
             std::vector<std::shared_ptr<dusl::Object>> _args,
-            Token tok
-        ): Object(std::move(tok)), args(std::move(_args)) {}
+            const Token& tok
+        ): Object(tok), args(std::move(_args)) {}
 
         ArgumentObject(
             std::unordered_map<std::string, std::shared_ptr<dusl::Object>> _default_args,
-            Token tok
-        ): Object(std::move(tok)), default_args(std::move(_default_args)) {}
-
+            const Token& tok
+        ): Object(tok), default_args(std::move(_default_args)) {}
 
     };
 
-    class FunctionObject : public Object {
+    class FunctionObject final: public Object {
     public:
         std::string func_name;
         bool is_anon = false;
@@ -360,10 +390,9 @@ namespace dusl {
             std::vector<std::string> _args,
             std::unordered_map<std::string, std::shared_ptr<dusl::Object>> _default_args,
             std::shared_ptr<BlockNode> _block,
-            Token tok,
+            const Token& tok,
             bool _is_anon = false
-        ) : Object(std::move(tok)), func_name(std::move(_func_name)), args(std::move(_args)), default_args(std::move(_default_args)), block(std::move(_block)),
-            is_anon(_is_anon) {}
+        );
 
 
         [[nodiscard]] std::string toString() const override;
@@ -372,7 +401,7 @@ namespace dusl {
         call(Interpreter &visitor, ArgumentObject &args, const Token &token) override;
     };
 
-    class BuiltinFunctionObject : public Object {
+    class BuiltinFunctionObject final: public Object {
     public:
         typedef dusl::FResult (*FunctionPointer)(Interpreter &, ArgumentObject &,
                                                  const dusl::Token &tok);
@@ -388,7 +417,7 @@ namespace dusl {
 
     };
 
-    class ErrorObject : public Object {
+    class ErrorObject final: public Object {
     public:
         ErrorType err_type;
         std::string err_msg;
@@ -401,7 +430,7 @@ namespace dusl {
         std::string generateErrString() const;
     };
 
-    class BreakObject : public Object {
+    class BreakObject final: public Object {
     public:
         explicit BreakObject(Token tok) : Object(std::move(tok)) {}
 
@@ -410,7 +439,7 @@ namespace dusl {
         bool isBreak() const override;
     };
 
-    class RangeObject : public Object {
+    class RangeObject final: public Object {
     public:
         int64_t start;
         int64_t end;
@@ -426,7 +455,9 @@ namespace dusl {
 
     };
 
-    class StructObject : public Object {
+
+    // Kinda unstable
+    class StructObject final: public Object {
     public:
         std::string name;
         std::unordered_map<std::string, std::shared_ptr<Object>> properties;
@@ -437,7 +468,7 @@ namespace dusl {
         dusl::FResult call(Interpreter &visitor, ArgumentObject &args_node, const Token &token) override;
     };
 
-    class StructInstanceObject : public Object {
+    class StructInstanceObject final: public Object {
     public:
         std::string name;
         std::unordered_map<std::string, std::shared_ptr<Object>> properties;
@@ -452,6 +483,8 @@ namespace dusl {
     // TODO: temporarily here
     class DBaseStruct {
     public:
+        virtual ~DBaseStruct() = default;
+
         struct StructCreationResult {
             bool is_error = false;
             std::shared_ptr<DBaseStruct> result;
@@ -481,7 +514,7 @@ namespace dusl {
     //using CreatorFunction = std::function<std::shared_ptr<DBaseStruct>(ArgumentObject&)>;
 
 
-    class StructProxyObject : public Object {
+    class StructProxyObject final: public Object {
     public:
         std::string cls_name;
         // the class that has inherited DBaseStruct
@@ -501,7 +534,7 @@ namespace dusl {
         void addFunc(const std::string& name, ExposedFunctions func);
     };
 
-    class StructProxyInstanceObject : public Object {
+    class StructProxyInstanceObject final: public Object {
     public:
         std::string cls_name;
         // the class that has inherited DBaseStruct
@@ -512,12 +545,12 @@ namespace dusl {
             std::string _cls_name, 
             std::shared_ptr<DBaseStruct> _cls_ref, 
 			std::map<std::string, ExposedFunctions> _exp_funcs,
-            Token tok
-        ) : Object(std::move(tok)), cls_name(std::move(_cls_name)), cls_ref(std::move(_cls_ref)),   exp_funcs(std::move(_exp_funcs)) { }
+            const Token& tok
+        ) : Object(tok), cls_name(std::move(_cls_name)), cls_ref(std::move(_cls_ref)),   exp_funcs(std::move(_exp_funcs)) { }
 
         [[nodiscard]] std::string toString() const override;
         [[nodiscard]] std::string getTypeString() const override;
-        dusl::FResult callProperty(Interpreter& visitor, const std::shared_ptr<dusl::FunctionCallNode> fn_node) override;
+        dusl::FResult callProperty(Interpreter& visitor, std::shared_ptr<dusl::FunctionCallNode> fn_node) override;
       
     };
 

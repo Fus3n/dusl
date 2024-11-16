@@ -1,11 +1,13 @@
 cmake_minimum_required(VERSION 3.26)
-project(dusllib)
+project(dusl)
 
 set(CMAKE_CXX_STANDARD 17)
 
+add_subdirectory(external/fmt-10.1.1 EXCLUDE_FROM_ALL)
+
 include_directories(include/dusl)
 
-add_library(dusllib STATIC
+add_library(dusl STATIC
         src/BaseObject.cpp
         src/common.cpp
         src/Context.cpp
@@ -46,7 +48,6 @@ add_library(dusllib STATIC
         include/dusl/SymbolTable.hpp
 )
 
-# might need to add nlohmen json include files
 
 include(CheckIPOSupported)
 check_ipo_supported(RESULT result)
@@ -54,7 +55,5 @@ if(result)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
-add_subdirectory("../external/fmt-10.1.1" build)
-
-target_include_directories(dusllib PUBLIC include)
-target_link_libraries(dusllib PUBLIC fmt)
+target_include_directories(dusl PUBLIC include)
+target_link_libraries(dusl PUBLIC fmt)

@@ -21,6 +21,11 @@ b = 123 #int64
 c = 1342.292 #float64
 d = [1, 2, 3, "A", "B"] # list
 e = {"Key1": "value1", "key2": "value2", 35: 3+5, "sub": {"sub": 1}} # dictionary
+
+# accessing values
+list_item = d[0] # gets first item
+dict_item = e.key1 # or just e["key1"]
+str_val = a[0] # gets first character
 ```
 
 ### Functions
@@ -29,11 +34,16 @@ fn add(a, b) {
     return a + b
 }
 
-# Annonymous function
+# Closures
 sub = fn(a, b) {
     return a - b
 }
-# Note: All functions return the last element by default same for annonymous functions
+# Closures can also have names
+sub2 = fn withName() {
+   return "Hello" 
+}
+
+# Note: All functions return the last element by default same for closures
 ```
 
 
@@ -63,6 +73,10 @@ for item from list {
 println("result", result)
 # note "break" also exist for for-loop and while loop
 ```
+
+### C++ Extensions (Experimental)
+Extensions lets you add functions to DUSL and let DUSL import call C++ functions. Examples will be added soon
+
 
 ### Examples
 ```python
@@ -106,6 +120,7 @@ fn binarySearch(list, target) {
     return -1
 }
 ```
+
 
 _**More on examples directory**_
 

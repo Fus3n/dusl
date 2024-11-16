@@ -293,12 +293,12 @@ dusl::DataNode * dusl::Parser::funcDef() {
     if (m_token.cmp(Ident)) {
         eat(Ident);
     } else {
-        func_name = "anonymous";
+        func_name = "closure";
         is_anon = true;
     }
 
-    auto arguments = parseFuncArgument(true);
-    auto block = scopeBlock(tok);
+    const auto arguments = parseFuncArgument(true);
+    const auto block = scopeBlock(tok);
     return new FunctionDefNode(func_name, arguments, block, tok, is_anon);
 }
 
@@ -319,7 +319,7 @@ dusl::ArgumentNode dusl::Parser::parseFuncArgument(bool is_define, Token _tok) {
         // check if its default argument
         if (auto varAccess = dynamic_cast<VarAccessNode*>(expr)) {
             args.emplace_back(expr);
-        } else if (auto assignNode = dynamic_cast<AssignmentNode*>(expr)) {
+        } else if (const auto assignNode = dynamic_cast<AssignmentNode*>(expr)) {
             default_args.emplace(assignNode->tok.value, assignNode->expr);
         } else if (is_define) {
             DError(SyntaxError,
@@ -397,7 +397,7 @@ dusl::DataNode * dusl::Parser::structDef() {
     eat(Ident);
 
     eat(LBrace);
-    auto struct_def = new StructDefNode(struct_name);
+    const auto struct_def = new StructDefNode(struct_name);
     while (!m_token.cmp(Eof) && !m_token.cmp(RBrace)) {
         struct_def->values.emplace_back(parseStructBody());
     }
@@ -409,8 +409,7 @@ dusl::DataNode * dusl::Parser::structDef() {
 dusl::DataNode* dusl::Parser::parseStructBody() {
     // Allow what a struct body should have
     if (m_token.cmp(TokenType::Ident)) {
-        const auto peeked = peek();
-        if (peeked.has_value() && peeked.value().cmp(dusl::Equal)) {
+        if (const auto peeked = peek(); peeked.has_value() && peeked.value().cmp(dusl::Equal)) {
             return parseAssignment();
         } else {
             DError(SyntaxError,

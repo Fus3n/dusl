@@ -1,85 +1,85 @@
-# fn reverseString(str) {
-#     reversedStr = ""
-#     i = str.size - 1
-#     while i >= 0 {
-#         reversedStr = reversedStr + str.get(i)
-#         i = i - 1
-#     }
-#     return reversedStr
-# }
-
-# fn isPalindrome(str) {
-#     reversed = reverseStr(str)
-#     return str == reversed
-# }
-
-# items = [3, 5, 2, 18, 10]
-
-# # fn bubbleSort(list) {
-# #     n = list.size
-# #     for i from 0..(n - 1) {
-# #         for j from 0..(n - i - 1) {
-# #             if list[j] > list[j + 1] {
-# #                 temp = list[j]
-# #                 res = list[j + 1]
-# #                 list[j] = res # TODO: fix index_assign doesnt work for direct assignment ex: "list[j] = list[j + 1]" this fails
-# #                 list[j + 1] = temp
-# #             }
-# #         }
-# #     }
-# #     return list
-# # }
-
-fn bubbleSort(list) {
-    n = list.size
-    swapped = true
-    while swapped {
-        swapped = false
-        i = 0
-        while i < n - 1 {
-            if (list[i] > list[i + 1]) {
-                temp = list[i]
-                list[i] = list[i + 1]
-                list[i + 1] =  temp
-                swapped = true
-            }
-            i = i + 1
-        }
-    }
-}
-
-# # println("Previous:", items)
-# # result = bubbleSort(items)
-# # println("Result:", items)
-
-# fn power(base, exponent) {
-#     if exponent == 0 {
-#         return 1
-#     }
-#     if exponent % 2 == 0 {
-#         return power(base * base, exponent / 2)
-#     } else {
-#         return base * power(base, exponent - 1)
-#     }
-# }
-
-# fn flatten(list) {
-#     result = []
-#     for item from list {
-#         if type(item) == "list" {
-#             result = result + flatten(item)
-#         } else {
-#             result.push(item)
-#         }
-#     }
-#     return result
-# }
-
-# # test_list = [[1,2,3], [4,5,6], [7,8,9]]
-
-# # r = flatten(test_list)
-# # println(r)
-
+## fn reverseString(str) {
+##     reversedStr = ""
+##     i = str.size - 1
+##     while i >= 0 {
+##         reversedStr = reversedStr + str.get(i)
+##         i = i - 1
+##     }
+##     return reversedStr
+## }
+#
+## fn isPalindrome(str) {
+##     reversed = reverseStr(str)
+##     return str == reversed
+## }
+#
+## items = [3, 5, 2, 18, 10]
+#
+## # fn bubbleSort(list) {
+## #     n = list.size
+## #     for i from 0..(n - 1) {
+## #         for j from 0..(n - i - 1) {
+## #             if list[j] > list[j + 1] {
+## #                 temp = list[j]
+## #                 res = list[j + 1]
+## #                 list[j] = res # TODO: fix index_assign doesnt work for direct assignment ex: "list[j] = list[j + 1]" this fails
+## #                 list[j + 1] = temp
+## #             }
+## #         }
+## #     }
+## #     return list
+## # }
+#
+#fn bubbleSort(list) {
+#    n = list.size
+#    swapped = true
+#    while swapped {
+#        swapped = false
+#        i = 0
+#        while i < n - 1 {
+#            if (list[i] > list[i + 1]) {
+#                temp = list[i]
+#                list[i] = list[i + 1]
+#                list[i + 1] =  temp
+#                swapped = true
+#            }
+#            i = i + 1
+#        }
+#    }
+#}
+#
+## # println("Previous:", items)
+## # result = bubbleSort(items)
+## # println("Result:", items)
+#
+## fn power(base, exponent) {
+##     if exponent == 0 {
+##         return 1
+##     }
+##     if exponent % 2 == 0 {
+##         return power(base * base, exponent / 2)
+##     } else {
+##         return base * power(base, exponent - 1)
+##     }
+## }
+#
+## fn flatten(list) {
+##     result = []
+##     for item from list {
+##         if type(item) == "list" {
+##             result = result + flatten(item)
+##         } else {
+##             result.push(item)
+##         }
+##     }
+##     return result
+## }
+#
+## # test_list = [[1,2,3], [4,5,6], [7,8,9]]
+#
+## # r = flatten(test_list)
+## # println(r)
+#
 fn binarySearch(list, target) {
     # Sort the list first
     bubbleSort(list)
@@ -100,39 +100,125 @@ fn binarySearch(list, target) {
     }
     return -1
 }
-
-
-#li = [4, 2, 1, 5, 6]
-#bubbleSort(li)
-#res = binarySearch(li, 5)
-#println(res)
 #
+#
+##li = [4, 2, 1, 5, 6]
+##bubbleSort(li)
+##res = binarySearch(li, 5)
+##println(res)
+##
+#
+#fn find_all_quoted(text) {
+#    finds = []
+#    has = true
+#    window = text
+#    while has and window.size > 0 {
+#        collected = ""
+#        first = window.find("\"")
+#        if first != -1 {
+#            window = window[first+1..(window.size-1)]
+#            second = window.find("\"")
+#            if second != -1 {
+#                idx = second - 1
+#                if idx > 0 {
+#                    collected = window[0..idx]
+#                    finds.push(collected)
+#                }
+#
+#                window = window[second+1..(window.size-1)]
+#            } else { has = false }
+#        } else { has = false }
+#    }
+#
+#    return finds
+#}
+#
+#fn insertionSort(arr) {
+#    for i from 1..arr.size {
+#        key = arr[i]
+#        j = i - 1
+#
+#        while j >= 0 and arr[j] > key {
+#            arr[j + 1] = arr[j]
+#            j = j - 1
+#        }
+#
+#        arr[j + 1] = key
+#    }
+#}
+#
+fn selectionSort(arr) {
+    for i from 0..arr.size {
+        curr_min_idx = i
 
-fn find_all_quoted(text) {
-    finds = []
-    has = true
-    window = text
-    while has and window.size > 0 {
-        collected = ""
-        first = window.find("\"")
-        if first != -1 {
-            window = window[first+1..(window.size-1)]
-            second = window.find("\"")
-            if second != -1 {
-                idx = second - 1
-                if idx > 0 {
-                    collected = window[0..idx]
-                    finds.push(collected)
-                }
+        for j from (i+1)..arr.size {
+            if arr[j] < arr[curr_min_idx] {
+                curr_min_idx = j
+            }
+        }
 
-                window = window[second+1..(window.size-1)]
-            } else { has = false }
-        } else { has = false }
+        new = arr[j]
+        old = arr[curr_min_idx]
+
+        arr[j] = old
+        arr[curr_min_idx] = new
     }
-
-    return finds
 }
 
+l1 = [9, 3, 5, 1, 6, 8]
+
+#selectionSort(l1)
+#println(l1)
+
+
+fn getUser() {
+    return  {
+        "name": "john",
+        "age": 24,
+        "x": 3,
+        "y": 25,
+        "distance": fn(self) {
+                return self.x + self.y
+            }
+    }
+}
+user1 = getUser()
+user1.distance(user1)
+
+struct User {
+    name = ""
+    age = 24
+    x = 3
+    y = 25
+
+    fn getName(self) { return self.name }
+
+    fn distance(self) {
+        return self.x + self.y
+    }
+}
+
+user = User(age=18, name="Fuse")
+println(user.getName(), user.age)
+println(user.distance())
+
+stuff = [1, 2, 3]
+
+modified = stuff.map(fn(item, idx) {
+    return item * 2
+})
+println(modified)
+
+##f1 = File("dusl-dataset.json")
+##contents = f1.read()
+#res = parseJSON("3+3*34") # TODO: fix it so parseJSON cant evaluate normal code
+#println(res)
+
+import "std:dusl_example_extension"
+
+println("Res", isPrime(15))
+
+#println(res.name)
 ## experimental File object
 #f1 = File("../out/build/x64-Debug/cmake_install.cmake")
 #contents = f1.read()

@@ -3,8 +3,8 @@
 #include <dusl/Interpreter.hpp>
 #include <dusl/utils/dusl_core.hpp>
 #include <fmt/core.h>
-#include <sstream>
 #include <algorithm>
+
 
 std::string dusl::NoneObject::toString() const {
     return "none";
@@ -45,6 +45,11 @@ dusl::FResult dusl::BuiltinFunctionObject::hash(const dusl::Token &token) const 
     );
 }
 
+dusl::FunctionObject::FunctionObject(std::string _func_name, std::vector<std::string> _args,
+    std::unordered_map<std::string, std::shared_ptr<dusl::Object>> _default_args, std::shared_ptr<BlockNode> _block,
+    const Token &tok, const bool _is_anon): Object(tok), func_name(std::move(_func_name)), is_anon(_is_anon), args(std::move(_args)), default_args(std::move(_default_args)),
+                                            block(std::move(_block)) {}
+
 std::string dusl::FunctionObject::toString() const {
     const void * address = static_cast<const void*>(this);
     return fmt::format("Function<{}, {}>", func_name, address);
@@ -58,9 +63,11 @@ dusl::FunctionObject::call(Interpreter &visitor, ArgumentObject &arguments, cons
 
     if (given_total > max_expected_args) {
         return FResult::createError(NameError, fmt::format("{} takes at most {} arguments but {} were given", func_name, max_expected_args, given_total), tok);
-    } else if (given_total < arg_total) {
+    }
+    if (given_total < arg_total) {
         return FResult::createError(NameError, fmt::format("{} takes at least {} arguments but {} were given", func_name, arg_total, given_total), tok);
-    } else if (given_total > arg_total && arguments.default_args.empty()) {
+    }
+    if (given_total > arg_total && arguments.default_args.empty()) {
         return FResult::createError(NameError, fmt::format("{} takes at most {} arguments but {} were given", func_name, arg_total, given_total), tok);
     }
 
@@ -104,7 +111,7 @@ dusl::FunctionObject::call(Interpreter &visitor, ArgumentObject &arguments, cons
 
     if (block_res.result->isReturn()) {
         // unwrap the return wrapper
-        auto ret = dynamic_cast<ReturnObject*>(block_res.result.get());
+        const auto ret = dynamic_cast<ReturnObject*>(block_res.result.get());
         return FResult::createResult(ret->return_obj, tok);
     }
 
@@ -128,11 +135,167 @@ bool dusl::BooleanObject::isTrue() const {
     return value;
 }
 
+std::string dusl::BooleanObject::getTypeString() const {
+    return "boolean";
+}
+
 dusl::FResult dusl::BooleanObject::hash(const dusl::Token &token) const {
     return FResult::createResult(
         std::make_shared<IntObject>(std::hash<bool>{}(value), token),
         token
     );
+}
+
+dusl::FResult dusl::BooleanObject::add_to(const std::shared_ptr<Object> &other, const dusl::Token &token) {
+    if (const auto intObject = std::dynamic_pointer_cast<IntObject>(other)) {
+        auto result = value + intObject->value;
+        return FResult::createResult(std::make_shared<IntObject>(result, tok), tok);
+    }
+    if (const auto floatObject = std::dynamic_pointer_cast<FloatObject>(other)) {
+        auto result = value + floatObject->value;
+        return FResult::createResult(std::make_shared<FloatObject>(result, tok), tok);
+    }
+
+    return Object::add_to(other, token);
+}
+
+dusl::FResult dusl::BooleanObject::sub_by(const std::shared_ptr<Object> &other, const Token &token) {
+    if (const auto intObject = std::dynamic_pointer_cast<IntObject>(other)) {
+        auto result = value - intObject->value;
+        return FResult::createResult(std::make_shared<IntObject>(result, tok), tok);
+    }
+    if (const auto floatObject = std::dynamic_pointer_cast<FloatObject>(other)) {
+        auto result = value - floatObject->value;
+        return FResult::createResult(std::make_shared<FloatObject>(result, tok), tok);
+    }
+
+    return Object::add_to(other, token);
+}
+
+dusl::FResult dusl::BooleanObject::multiplied_by(const std::shared_ptr<Object> &other, const Token &token) {
+    if (const auto intObject = std::dynamic_pointer_cast<IntObject>(other)) {
+        auto result = value * intObject->value;
+        return FResult::createResult(std::make_shared<IntObject>(result, tok), tok);
+    }
+    if (const auto floatObject = std::dynamic_pointer_cast<FloatObject>(other)) {
+        auto result = value * floatObject->value;
+        return FResult::createResult(std::make_shared<FloatObject>(result, tok), tok);
+    }
+
+    return Object::add_to(other, token);
+}
+
+dusl::FResult dusl::BooleanObject::divided_by(const std::shared_ptr<Object> &other, const Token &token) {
+    if (const auto intObject = std::dynamic_pointer_cast<IntObject>(other)) {
+        if (intObject->value == 0) {
+            return NumberError::throwZeroDivisionError(token, other);
+        }
+
+        long double result = value / static_cast<double>(intObject->value);
+        return FResult::createResult(std::make_shared<FloatObject>(result, tok), tok);
+    } if (const auto floatObject = std::dynamic_pointer_cast<FloatObject>(other)) {
+        if (floatObject->value == 0) {
+            return NumberError::throwZeroDivisionError(token, other);
+        }
+        auto result = value / floatObject->value;
+        return FResult::createResult(std::make_shared<FloatObject>(result, tok), tok);
+    }
+
+    return Object::divided_by(other, token);
+}
+
+dusl::FResult dusl::BooleanObject::modulo_by(const std::shared_ptr<Object> &other, const Token &token) {
+    if (const auto intObject = std::dynamic_pointer_cast<IntObject>(other)) {
+        auto result = fmodl(value, intObject->value);
+        return FResult::createResult(std::make_shared<IntObject>(result, tok), tok);
+    }
+    if (const auto floatObject = std::dynamic_pointer_cast<FloatObject>(other)) {
+        auto result = fmodl(value, floatObject->value);
+        return FResult::createResult(std::make_shared<FloatObject>(result, tok), tok);
+    }
+    return Object::modulo_by(other, token);
+}
+
+dusl::FResult dusl::BooleanObject::greater_than(const std::shared_ptr<Object> &other, const dusl::Token &token) {
+    if (const auto intObject = std::dynamic_pointer_cast<IntObject>(other)) {
+        auto result = value > intObject->value;
+        return FResult::createResult(std::make_shared<BooleanObject>(result, tok), tok);
+    }
+    if (const auto floatObject = std::dynamic_pointer_cast<FloatObject>(other)) {
+        auto result = value > floatObject->value;
+        return FResult::createResult(std::make_shared<BooleanObject>(result, tok), tok);
+    }
+
+    return Object::add_to(other, token);
+}
+
+dusl::FResult dusl::BooleanObject::less_than(const std::shared_ptr<Object> &other, const dusl::Token &token) {
+    if (const auto intObject = std::dynamic_pointer_cast<IntObject>(other)) {
+        auto result = value < intObject->value;
+        return FResult::createResult(std::make_shared<BooleanObject>(result, tok), tok);
+    }
+    if (const auto floatObject = std::dynamic_pointer_cast<FloatObject>(other)) {
+        auto result = value < floatObject->value;
+        return FResult::createResult(std::make_shared<BooleanObject>(result, tok), tok);
+    }
+
+    return Object::add_to(other, token);
+}
+
+dusl::FResult dusl::BooleanObject::greater_or_equal(const std::shared_ptr<Object> &other, const Token &token) {
+    if (const auto intObject = std::dynamic_pointer_cast<IntObject>(other)) {
+        auto result = value >= intObject->value;
+        return FResult::createResult(std::make_shared<BooleanObject>(result, tok), tok);
+    }
+    if (const auto floatObject = std::dynamic_pointer_cast<FloatObject>(other)) {
+        auto result = value >= floatObject->value;
+        return FResult::createResult(std::make_shared<BooleanObject>(result, tok), tok);
+    }
+
+    return Object::add_to(other, token);
+}
+
+dusl::FResult dusl::BooleanObject::less_or_equal(const std::shared_ptr<Object> &other, const Token &token) {
+    if (const auto intObject = std::dynamic_pointer_cast<IntObject>(other)) {
+        auto result = value <= intObject->value;
+        return FResult::createResult(std::make_shared<BooleanObject>(result, tok), tok);
+    }
+    if (const auto floatObject = std::dynamic_pointer_cast<FloatObject>(other)) {
+        auto result = value <= floatObject->value;
+        return FResult::createResult(std::make_shared<BooleanObject>(result, tok), tok);
+    }
+
+    return Object::add_to(other, token);
+}
+
+dusl::FResult dusl::BooleanObject::equal_to(const std::shared_ptr<Object> &other, const Token &token) {
+    if (const auto intObject = std::dynamic_pointer_cast<IntObject>(other)) {
+        auto result = value == intObject->value;
+        return FResult::createResult(std::make_shared<BooleanObject>(result, tok), tok);
+    }
+    if (const auto floatObject = std::dynamic_pointer_cast<FloatObject>(other)) {
+        auto result = value == floatObject->value;
+        return FResult::createResult(std::make_shared<BooleanObject>(result, tok), tok);
+    }
+    if (const auto booleanObj = std::dynamic_pointer_cast<BooleanObject>(other)) {
+        return FResult::createResult(std::make_shared<BooleanObject>(value == booleanObj->value, tok), tok);
+    }
+    return FResult::createResult(std::make_shared<BooleanObject>(false, tok), tok);
+}
+
+dusl::FResult dusl::BooleanObject::not_equal_to(const std::shared_ptr<Object> &other, const Token &token) {
+    if (const auto intObject = std::dynamic_pointer_cast<IntObject>(other)) {
+        auto result = value != intObject->value;
+        return FResult::createResult(std::make_shared<BooleanObject>(result, tok), tok);
+    }
+    if (const auto floatObject = std::dynamic_pointer_cast<FloatObject>(other)) {
+        auto result = value != floatObject->value;
+        return FResult::createResult(std::make_shared<BooleanObject>(result, tok), tok);
+    }
+    if (const auto booleanObj = std::dynamic_pointer_cast<BooleanObject>(other)) {
+        return FResult::createResult(std::make_shared<BooleanObject>(value != booleanObj->value, tok), tok);
+    }
+    return FResult::createResult(std::make_shared<BooleanObject>(false, tok), tok);
 }
 
 std::string dusl::ReturnObject::toString() const {
@@ -166,6 +329,10 @@ dusl::FResult::createError(ErrorType err_type, std::string msg, const Token& tok
 dusl::FResult
 dusl::FResult::createResult(const std::shared_ptr<Object>& _result, const Token &tok) {
     return FResult(_result);
+}
+
+dusl::FResult dusl::FResult::createResult(const Token &tok) {
+    return FResult(std::make_shared<NoneObject>(tok));
 }
 
 bool dusl::FResult::isError() const {
