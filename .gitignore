@@ -10,3 +10,4 @@
 /examples/dusl_extension_example/build/
 /examples/dusl_extension_example/cmake-build-debug/
 /examples/dusl_extension_example/cmake-build-release/
+/cmake-build-release
